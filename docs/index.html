@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>puz — movement breaks that interrupt you back</title>
+  <meta name="description" content="puz is a small macOS menu bar app for fullscreen movement-break prompts and countdowns.">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080a0f;
+      --panel: #111722;
+      --panel-2: #0c111a;
+      --text: #f4f7fb;
+      --muted: #a8b3c4;
+      --line: rgba(255,255,255,.14);
+      --accent: #ffffff;
+      --soft: rgba(255,255,255,.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,.10), transparent 28rem),
+        linear-gradient(180deg, #080a0f 0%, #0a0d14 55%, #07090d 100%);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    a { color: var(--text); text-decoration-thickness: .08em; text-underline-offset: .22em; }
+    .wrap { width: min(1080px, calc(100% - 32px)); margin: 0 auto; }
+    nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+    nav .links { display: flex; gap: 16px; flex-wrap: wrap; justify-content: flex-end; }
+    .brand { letter-spacing: .12em; text-transform: uppercase; color: var(--text); }
+    .hero { padding: 80px 0 56px; }
+    .eyebrow { color: var(--muted); text-transform: uppercase; letter-spacing: .16em; font-size: 13px; }
+    h1 { font-size: clamp(48px, 9vw, 104px); line-height: .92; margin: 14px 0 24px; letter-spacing: -.07em; }
+    h2 { font-size: clamp(28px, 5vw, 48px); line-height: 1.05; margin: 0 0 18px; letter-spacing: -.04em; }
+    h3 { margin-top: 0; }
+    .lead { max-width: 720px; font-size: clamp(19px, 2.4vw, 27px); color: #dbe3ee; }
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 32px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--soft);
+      text-decoration: none;
+    }
+    .button.primary { background: var(--accent); color: #080a0f; border-color: var(--accent); }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 36px 0 72px; }
+    .card { background: linear-gradient(180deg, var(--panel), var(--panel-2)); border: 1px solid var(--line); border-radius: 24px; padding: 22px; min-height: 180px; }
+    .card p, .muted { color: var(--muted); }
+    .section { padding: 64px 0; border-top: 1px solid var(--line); }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    ul { padding-left: 1.2rem; }
+    code { background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: .15rem .35rem; }
+    pre { overflow: auto; background: #05070b; border: 1px solid var(--line); border-radius: 18px; padding: 18px; }
+    footer { color: var(--muted); padding: 48px 0 72px; border-top: 1px solid var(--line); }
+    @media (max-width: 780px) {
+      .grid, .two { grid-template-columns: 1fr; }
+      .hero { padding-top: 52px; }
+      nav { align-items: flex-start; gap: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <div class="brand">&lt;//&gt; puz</div>
+      <div class="links">
+        <a href="#en">English</a>
+        <a href="#ko">한국어</a>
+        <a href="https://github.com/hosioobo/puz">GitHub</a>
+      </div>
+    </nav>
+
+    <main>
+      <section class="hero" id="en">
+        <div class="eyebrow">macOS menu bar app · v0.1.0</div>
+        <h1>Movement breaks that interrupt you back.</h1>
+        <p class="lead">puz is a tiny macOS app for fullscreen routine prompts and countdowns. It is built for breaks you actually want to do, not reminders you instantly dismiss.</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/hosioobo/puz">View source</a>
+          <a class="button" href="https://github.com/hosioobo/puz#readme">Read the README</a>
+          <a class="button" href="#ko">한국어 설명</a>
+        </div>
+      </section>
+
+      <section class="grid" aria-label="Highlights">
+        <article class="card">
+          <h3>Fullscreen by design</h3>
+          <p>A routine prompt appears over your work. Once started, the countdown covers every connected display until you press Resume.</p>
+        </article>
+        <article class="card">
+          <h3>Small schedule model</h3>
+          <p>Use either a fixed time or one random trigger inside a daily window. v0.1.0 keeps scheduling intentionally simple.</p>
+        </article>
+        <article class="card">
+          <h3>Local-first</h3>
+          <p>Settings and completion records stay on your Mac. No account, server, or analytics pipeline is part of this checkpoint.</p>
+        </article>
+      </section>
+
+      <section class="section two">
+        <div>
+          <h2>What v0.1.0 includes</h2>
+          <ul>
+            <li>Menu bar app with a compact <code>&lt;//&gt;</code> identity.</li>
+            <li>Default burpee routine, 10-minute countdown, and 09:00–18:00 random window.</li>
+            <li>Start prompt with short, long, and random snooze options.</li>
+            <li>Snooze limit display before the countdown starts.</li>
+            <li>Settings for routine name, duration, schedule, and snooze limit.</li>
+          </ul>
+        </div>
+        <div>
+          <h2>No screenshots yet</h2>
+          <p class="muted">This first public page is text-only on purpose. Screenshots and short capture media can come later after the visual flow settles.</p>
+        </div>
+      </section>
+
+      <section class="section two">
+        <div>
+          <h2>Build from source</h2>
+          <pre><code>git clone https://github.com/hosioobo/puz.git
+cd puz
+swift run PauseCoreTestRunner
+swift build --product PauseApp
+Scripts/build_app.sh</code></pre>
+        </div>
+        <div>
+          <h2>Status</h2>
+          <p class="muted">v0.1.0 is a public source checkpoint. It is not yet a signed or notarized binary distribution.</p>
+        </div>
+      </section>
+
+      <section class="section" id="ko" lang="ko">
+        <div class="eyebrow">한국어 · macOS 메뉴바 앱</div>
+        <h2>쉽게 넘기지 못하는 운동/휴식 알림.</h2>
+        <p class="lead">puz는 전체화면 루틴 프롬프트와 카운트다운을 띄우는 작은 macOS 앱입니다. 그냥 사라지는 알림이 아니라, 잠깐 멈추고 움직이게 만드는 인터럽트를 목표로 합니다.</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/hosioobo/puz/blob/main/README.ko.md">한국어 README</a>
+          <a class="button" href="https://github.com/hosioobo/puz">GitHub에서 보기</a>
+          <a class="button" href="#en">English</a>
+        </div>
+        <div class="grid">
+          <article class="card">
+            <h3>전체화면 중심</h3>
+            <p>시작 프롬프트가 작업 위에 뜨고, 시작하면 모든 모니터를 덮는 카운트다운이 표시됩니다.</p>
+          </article>
+          <article class="card">
+            <h3>단순한 일정</h3>
+            <p>지정 시각 또는 하루 랜덤 구간 중 하나를 사용합니다. v0.1.0에서는 의도적으로 작고 직관적인 모델만 둡니다.</p>
+          </article>
+          <article class="card">
+            <h3>로컬 우선</h3>
+            <p>설정과 완료 기록은 Mac에 저장됩니다. 계정, 서버, 분석 파이프라인은 없습니다.</p>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>puz v0.1.0 · Source: <a href="https://github.com/hosioobo/puz">github.com/hosioobo/puz</a></p>
+    </footer>
+  </div>
+</body>
+</html>
