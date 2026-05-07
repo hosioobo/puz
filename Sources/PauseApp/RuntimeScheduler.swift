@@ -9,9 +9,11 @@ final class RuntimeScheduler {
     private let overlayController: OverlayController
     private let menuBarController: MenuBarController
     private let scheduleEngine = ScheduleEngine()
+    private let strings = PuzLocalization.current
 
     private var timer: Timer?
     private var activeRoutine: Routine?
+    private var activeSlot: VirtualSlot?
     private var activeSnoozeCount = 0
     private var activeTriggerDate: Date?
     private var notificationID: String?
@@ -39,13 +41,20 @@ final class RuntimeScheduler {
         timer?.invalidate()
         timer = nil
         cancelPendingNotification()
+        clearActiveRoutine()
     }
 
     func startNow() {
-        let routine = store.routines.first(where: { $0.isEnabled }) ?? Routine.defaultBurpee()
+        guard let routine = store.routines.first(where: { $0.isEnabled }) else {
+            clearActiveRoutine()
+            updateMenu(next: nil)
+            return
+        }
+        let now = Date()
         activeRoutine = routine
+        activeSlot = manualSlot(for: routine, now: now)
         activeSnoozeCount = 0
-        activeTriggerDate = Date()
+        activeTriggerDate = now
         startCountdown(for: routine)
     }
 
@@ -56,21 +65,21 @@ final class RuntimeScheduler {
         guard let next = scheduleEngine.nextRuntimeTrigger(
             for: store.routines,
             completionRecords: store.completionRecords,
+            skipRecords: store.skipRecords,
             after: now
         ) else {
-            activeRoutine = nil
-            activeSnoozeCount = 0
-            activeTriggerDate = nil
-            updateMenu(nextDate: nil)
+            clearActiveRoutine()
+            updateMenu(next: nil)
             return
         }
 
         activeRoutine = next.routine
+        activeSlot = next.slot
         activeSnoozeCount = 0
         activeTriggerDate = next.date
         scheduleTimer(for: next.routine, at: next.date)
-        scheduleNotification(for: next.routine, at: next.date)
-        updateMenu(nextDate: next.date)
+        scheduleNotification(for: next.routine, at: next.date, slot: next.slot)
+        updateMenu(next: next)
     }
 
     private func scheduleTimer(for routine: Routine, at date: Date) {
@@ -92,8 +101,8 @@ final class RuntimeScheduler {
             onSnooze: { [weak self] option in
                 self?.snooze(routine, option: option)
             },
-            onCancel: { [weak self] in
-                self?.cancelActiveFullscreenFlow()
+            onEndSession: { [weak self] action in
+                self?.endSession(action, for: routine)
             },
             onQuit: {
                 NSApp.terminate(nil)
@@ -111,8 +120,8 @@ final class RuntimeScheduler {
         activeTriggerDate = nextDate
         promptController.dismiss()
         scheduleTimer(for: routine, at: nextDate)
-        scheduleNotification(for: routine, at: nextDate)
-        updateMenu(nextDate: nextDate)
+        scheduleNotification(for: routine, at: nextDate, slot: activeSlot)
+        updateMenu(next: ScheduledRoutine(routine: routine, date: nextDate, slot: activeSlot))
     }
 
     private func startCountdown(for routine: Routine) {
@@ -124,25 +133,62 @@ final class RuntimeScheduler {
 
         overlayController.startCountdown(
             routine: routine,
+            usedSnoozeCount: usedSnoozeCount,
             onComplete: { [weak self] in
                 guard let self else { return }
+                let slot = self.activeSlot
                 self.store.appendCompletionRecord(
                     CompletionRecord(
                         routineID: routine.id,
                         completedAt: Date(),
                         snoozeCount: usedSnoozeCount,
-                        wasInterrupted: false
+                        wasInterrupted: false,
+                        scheduledAt: slot?.scheduledAt ?? self.activeTriggerDate,
+                        slotKey: slot?.slotKey
                     )
                 )
-                self.activeRoutine = nil
-                self.activeSnoozeCount = 0
-                self.activeTriggerDate = nil
+                self.clearActiveRoutine()
                 self.scheduleNextRoutine()
             },
-            onCancel: { [weak self] in
-                self?.cancelActiveFullscreenFlow()
+            onEndSession: { [weak self] action in
+                self?.endSession(action, for: routine)
             }
         )
+    }
+
+    private func endSession(_ action: SessionEndAction, for routine: Routine) {
+        switch action {
+        case .remindMeLater:
+            let state = SnoozePromptState(policy: routine.snoozePolicy, usedCount: activeSnoozeCount)
+            guard state.canSnooze else {
+                cancelActiveFullscreenFlow()
+                return
+            }
+            snooze(routine, option: .random)
+        case .skipToday:
+            skipToday(routine)
+        case .justClose:
+            cancelActiveFullscreenFlow()
+        }
+    }
+
+    private func skipToday(_ routine: Routine) {
+        timer?.invalidate()
+        timer = nil
+        cancelPendingNotification()
+        promptController.dismiss()
+        let scheduledAt = activeSlot?.scheduledAt ?? activeTriggerDate ?? Date()
+        store.appendSkipRecord(
+            SkipRecord(
+                routineID: routine.id,
+                scheduledDate: scheduledAt,
+                skippedAt: Date(),
+                scheduledAt: scheduledAt,
+                slotKey: activeSlot?.slotKey
+            )
+        )
+        clearActiveRoutine()
+        scheduleNextRoutine()
     }
 
     private func cancelActiveFullscreenFlow() {
@@ -150,21 +196,21 @@ final class RuntimeScheduler {
         timer = nil
         cancelPendingNotification()
         promptController.dismiss()
-        activeRoutine = nil
-        activeSnoozeCount = 0
-        activeTriggerDate = nil
+        clearActiveRoutine()
         scheduleNextRoutine()
     }
 
-    private func scheduleNotification(for routine: Routine, at date: Date) {
+    private func scheduleNotification(for routine: Routine, at date: Date, slot: VirtualSlot?) {
         cancelPendingNotification()
         let interval = max(1, date.timeIntervalSinceNow)
         let content = UNMutableNotificationContent()
-        content.title = "\(routine.title) 시간"
-        content.body = "지금 시작하거나 1분/30분/랜덤으로 미룰 수 있어요."
+        let routineTitle = strings.routineTitle(routine)
+        content.title = strings.notificationTitle(routineTitle: routineTitle)
+        content.body = strings.notificationBody
         content.sound = .default
 
-        let id = "puz.\(routine.id.uuidString).\(Int(date.timeIntervalSince1970))"
+        let idSuffix = slot?.slotKey ?? String(Int(date.timeIntervalSince1970))
+        let id = "puz.\(routine.id.uuidString).\(idSuffix)"
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
         let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
         notificationID = id
@@ -181,10 +227,34 @@ final class RuntimeScheduler {
         self.notificationID = nil
     }
 
-    private func updateMenu(nextDate: Date?) {
+    private func updateMenu(next: ScheduledRoutine?) {
+        let today = Date()
+        let completed = store.completions(on: today).filter { !$0.wasInterrupted }.count
+        let totalSlots = store.routines.reduce(0) { total, routine in
+            total + scheduleEngine.slots(for: routine, on: today).count
+        }
         menuBarController.update(
-            nextDate: nextDate,
-            todayCount: store.completions(on: Date()).filter { !$0.wasInterrupted }.count
+            next: next,
+            todayCompleted: completed,
+            todayTotal: max(totalSlots, completed),
+            hasRoutines: !store.routines.isEmpty
         )
+    }
+
+    private func manualSlot(for routine: Routine, now: Date) -> VirtualSlot? {
+        scheduleEngine.availableSlots(
+            for: routine,
+            on: now,
+            completionRecords: store.completionRecords,
+            skipRecords: store.skipRecords,
+            after: now.addingTimeInterval(-1)
+        ).first
+    }
+
+    private func clearActiveRoutine() {
+        activeRoutine = nil
+        activeSlot = nil
+        activeSnoozeCount = 0
+        activeTriggerDate = nil
     }
 }

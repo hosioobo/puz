@@ -9,8 +9,9 @@ final class OverlayController {
 
     func startCountdown(
         routine: Routine,
+        usedSnoozeCount: Int,
         onComplete: @escaping () -> Void,
-        onCancel: @escaping () -> Void
+        onEndSession: @escaping (SessionEndAction) -> Void
     ) {
         closeWindows()
 
@@ -20,9 +21,9 @@ final class OverlayController {
                 self?.closeWindows()
                 onComplete()
             },
-            onCancel: { [weak self] in
+            onEndSession: { [weak self] action in
                 self?.closeWindows()
-                onCancel()
+                onEndSession(action)
             }
         )
         self.session = session
@@ -30,6 +31,7 @@ final class OverlayController {
         for screen in NSScreen.screens {
             let view = CountdownOverlayView(
                 routine: routine,
+                usedSnoozeCount: usedSnoozeCount,
                 session: session
             )
             let window = FullscreenWindowFactory.make(screen: screen, title: "puz", rootView: view)
@@ -62,13 +64,13 @@ final class CountdownSession: ObservableObject {
     private var timer: Timer?
     private var didExit = false
     private let onResume: () -> Void
-    private let onCancel: () -> Void
+    private let onEndSession: (SessionEndAction) -> Void
 
-    init(totalSeconds: Int, onResume: @escaping () -> Void, onCancel: @escaping () -> Void) {
+    init(totalSeconds: Int, onResume: @escaping () -> Void, onEndSession: @escaping (SessionEndAction) -> Void) {
         self.totalSeconds = max(1, totalSeconds)
         self.remainingSeconds = max(1, totalSeconds)
         self.onResume = onResume
-        self.onCancel = onCancel
+        self.onEndSession = onEndSession
     }
 
     var progress: Double {
@@ -100,11 +102,11 @@ final class CountdownSession: ObservableObject {
         onResume()
     }
 
-    func cancel() {
+    func endSession(_ action: SessionEndAction) {
         guard !didExit else { return }
         didExit = true
         stop()
-        onCancel()
+        onEndSession(action)
     }
 
     func stop() {
@@ -115,7 +117,16 @@ final class CountdownSession: ObservableObject {
 
 struct CountdownOverlayView: View {
     let routine: Routine
+    let usedSnoozeCount: Int
     @ObservedObject var session: CountdownSession
+
+    @State private var showsEndSessionDialog = false
+
+    private let strings = PuzLocalization.current
+
+    private var minutesValue: Int {
+        max(1, (routine.countdownSeconds + 59) / 60)
+    }
 
     private var remainingText: String {
         let minutes = session.remainingSeconds / 60
@@ -123,60 +134,159 @@ struct CountdownOverlayView: View {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 
+    private var localizedRoutineTitle: String {
+        strings.routineTitle(routine)
+    }
+
+    private var titleText: String {
+        session.isComplete ? strings.countdownCompleteTitle : strings.activeSessionTitle(for: routine.actionType)
+    }
+
+    private var subtitleText: String {
+        if session.isComplete {
+            return strings.completionSubtitle(routineTitle: localizedRoutineTitle, minutes: minutesValue)
+        }
+        return strings.focusText(for: routine.actionType)
+    }
+
+    private var ringProgress: Double {
+        session.isComplete ? 1 : session.progress
+    }
+
+    private var canSnoozeFromDialog: Bool {
+        SnoozePromptState(policy: routine.snoozePolicy, usedCount: usedSnoozeCount).canSnooze
+    }
+
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Color.black.ignoresSafeArea()
+        ZStack {
+            PuzFullscreenBackground()
             PuzEntranceFlash()
 
-            Button("×") { session.cancel() }
-                .buttonStyle(
-                    PuzBigButtonStyle(
-                        accent: .white,
-                        foreground: .white,
-                        filledForeground: .white,
-                        hoverFill: .white.opacity(0.12),
-                        minWidth: 38,
-                        minHeight: 38,
-                        fontSize: 20,
-                        horizontalPadding: 0,
-                        cornerRadius: 19,
-                        lineWidth: 1.25
-                    )
-                )
-                .focusable(false)
-                .accessibilityLabel("카운트다운 취소")
-                .padding(.top, 34)
-                .padding(.trailing, 38)
+            VStack(spacing: 16) {
+                Spacer(minLength: 86)
 
-            VStack(spacing: 34) {
-                Text("<//> puz")
-                    .font(.system(size: 30, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.5))
+                PuzRoutineGlyph(actionType: routine.actionType, isComplete: session.isComplete)
+                    .padding(.bottom, 4)
 
-                Text(session.isComplete ? "끝났어요" : routine.title)
-                    .font(.system(size: 58, weight: .heavy, design: .rounded))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.5)
+                VStack(spacing: 10) {
+                    Text(titleText)
+                        .font(.system(size: session.isComplete ? 72 : 58, weight: .heavy, design: .rounded))
+                        .foregroundStyle(PuzFullscreenTheme.text)
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.45)
 
-                TimerProgressRingView(text: remainingText, progress: session.progress)
+                    Text(subtitleText)
+                        .font(.system(size: 24, weight: .medium, design: .rounded))
+                        .foregroundStyle(PuzFullscreenTheme.secondaryText)
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.65)
+                }
+
+                TimerProgressRingView(text: remainingText, progress: ringProgress, isComplete: session.isComplete)
+                    .padding(.top, 14)
 
                 if session.isComplete {
-                    Text("준비되면 Resume을 눌러 화면을 다시 열어요")
-                        .font(.system(size: 26, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.68))
-
-                    Button("Resume") { session.resume() }
+                    Button(strings.resumeButtonTitle) { session.resume() }
                         .keyboardShortcut(.defaultAction)
-                        .buttonStyle(PuzBigButtonStyle(accent: .white, filledForeground: .black, minWidth: 360, minHeight: 104, fontSize: 44, lineWidth: 2.5))
+                        .buttonStyle(
+                            PuzBigButtonStyle(
+                                accent: PuzFullscreenTheme.accent,
+                                foreground: PuzFullscreenTheme.accent,
+                                filledForeground: .white,
+                                hoverFill: PuzFullscreenTheme.accent,
+                                minWidth: 480,
+                                minHeight: 90,
+                                fontSize: 36,
+                                cornerRadius: 18,
+                                lineWidth: 1.5
+                            )
+                        )
+                        .padding(.top, 10)
+
+                    Text(strings.resumeInstruction)
+                        .font(.system(size: 21, weight: .medium, design: .rounded))
+                        .foregroundStyle(PuzFullscreenTheme.secondaryText)
+                        .padding(.top, 10)
                 } else {
-                    Text("끝날 때까지 진행 · 완료 후 Resume으로 복귀")
-                        .font(.system(size: 26, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.72))
+                    Text(strings.sessionProgressText(minutes: minutesValue))
+                        .font(.system(size: 22, weight: .medium, design: .rounded))
+                        .foregroundStyle(PuzFullscreenTheme.secondaryText)
+                        .padding(.top, 6)
+
+                    PuzSessionStepsRow(
+                        labels: strings.sessionStepLabels(for: routine.actionType),
+                        symbols: stepSymbols(for: routine.actionType)
+                    )
+                    .padding(.top, 8)
+
+                    PuzInfoLine(text: strings.countdownProgressInstruction)
+                        .padding(.top, 18)
                 }
+
+                Spacer(minLength: 80)
             }
-            .padding(48)
+            .padding(.horizontal, 64)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .overlay(alignment: .topLeading) {
+            PuzBrandLockup()
+                .padding(.top, 45)
+                .padding(.leading, 50)
+        }
+        .overlay(alignment: .topTrailing) {
+            closeButton
+                .padding(.top, 36)
+                .padding(.trailing, 42)
+        }
+        .overlay {
+            if showsEndSessionDialog {
+                PuzEndSessionDialog(
+                    canSnooze: canSnoozeFromDialog,
+                    onAction: { action in
+                        showsEndSessionDialog = false
+                        session.endSession(action)
+                    },
+                    onKeepGoing: {
+                        showsEndSessionDialog = false
+                    }
+                )
+            }
+        }
+        .animation(.easeOut(duration: 0.16), value: showsEndSessionDialog)
+    }
+
+    private var closeButton: some View {
+        Button("×") { showsEndSessionDialog = true }
+            .buttonStyle(
+                PuzBigButtonStyle(
+                    accent: PuzFullscreenTheme.hairline,
+                    foreground: PuzFullscreenTheme.secondaryText,
+                    filledForeground: PuzFullscreenTheme.text,
+                    hoverFill: PuzFullscreenTheme.hairline.opacity(0.18),
+                    minWidth: 42,
+                    minHeight: 42,
+                    fontSize: 22,
+                    horizontalPadding: 0,
+                    cornerRadius: 21,
+                    lineWidth: 1.25
+                )
+            )
+            .focusable(false)
+            .accessibilityLabel(strings.countdownCancelAccessibilityLabel)
+    }
+
+    private func stepSymbols(for actionType: ActionType) -> [String] {
+        switch actionType {
+        case .burpee:
+            return ["figure.walk", "timer", "wind"]
+        case .standUp:
+            return ["figure.stand", "arrow.triangle.2.circlepath", "eye"]
+        case .drinkWater:
+            return ["drop", "wind", "sparkles"]
+        case .stretch:
+            return ["arrow.triangle.2.circlepath", "person.crop.circle", "figure.walk"]
+        case .exercise:
+            return ["figure.walk", "checkmark.seal", "wind"]
         }
     }
 }
@@ -184,27 +294,61 @@ struct CountdownOverlayView: View {
 struct TimerProgressRingView: View {
     let text: String
     let progress: Double
+    var isComplete = false
+
+    private var clampedProgress: Double {
+        max(0, min(1, progress))
+    }
 
     var body: some View {
         ZStack {
             Circle()
-                .stroke(.white.opacity(0.14), lineWidth: 6)
+                .stroke(PuzFullscreenTheme.ringTrack, lineWidth: 4)
 
             Circle()
-                .trim(from: 1 - progress, to: 1)
+                .trim(from: 1 - clampedProgress, to: 1)
                 .stroke(
-                    .white,
-                    style: StrokeStyle(lineWidth: 6, lineCap: .round, lineJoin: .round)
+                    PuzFullscreenTheme.accent,
+                    style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round)
                 )
                 .rotationEffect(.degrees(-90))
-                .animation(.linear(duration: 0.25), value: progress)
+                .animation(.linear(duration: 0.25), value: clampedProgress)
 
             Text(text)
-                .font(.system(size: 108, weight: .heavy, design: .monospaced))
-                .foregroundStyle(.white)
+                .font(.system(size: 82, weight: .heavy, design: .monospaced))
+                .foregroundStyle(isComplete ? PuzFullscreenTheme.accent : PuzFullscreenTheme.text)
                 .minimumScaleFactor(0.45)
         }
-        .frame(width: 380, height: 380)
+        .frame(width: 316, height: 316)
         .padding(8)
+    }
+}
+
+struct PuzSessionStepsRow: View {
+    let labels: [String]
+    let symbols: [String]
+
+    var body: some View {
+        HStack(spacing: 26) {
+            ForEach(labels.indices, id: \.self) { index in
+                VStack(spacing: 6) {
+                    Image(systemName: index < symbols.count ? symbols[index] : "circle")
+                        .font(.system(size: 34, weight: .regular))
+                        .foregroundStyle(PuzFullscreenTheme.accent)
+                        .symbolRenderingMode(.hierarchical)
+                    Text(labels[index])
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                        .foregroundStyle(PuzFullscreenTheme.secondaryText)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                .frame(minWidth: 122)
+
+                if index < labels.count - 1 {
+                    Rectangle()
+                        .fill(PuzFullscreenTheme.hairline)
+                        .frame(width: 1, height: 52)
+                }
+            }
+        }
     }
 }

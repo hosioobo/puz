@@ -1,32 +1,48 @@
 import AppKit
+import PauseCore
 
 final class MenuBarController: NSObject {
     var onStartNow: (() -> Void)?
     var onOpenSettings: (() -> Void)?
     var onQuit: (() -> Void)?
 
+    private let strings: PuzLocalization
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let nextItem = NSMenuItem(title: "다음: 계산 중", action: nil, keyEquivalent: "")
-    private let todayItem = NSMenuItem(title: "오늘 완료: 0", action: nil, keyEquivalent: "")
-    private let formatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "M/d HH:mm"
-        return formatter
-    }()
+    private let nextItem: NSMenuItem
+    private let todayItem: NSMenuItem
+    private let formatter: DateFormatter
 
-    override init() {
+    init(strings: PuzLocalization = .current) {
+        self.strings = strings
+        self.nextItem = NSMenuItem(title: strings.menuNextCalculating, action: nil, keyEquivalent: "")
+        self.todayItem = NSMenuItem(title: strings.todayCompleted(count: 0), action: nil, keyEquivalent: "")
+
+        let formatter = DateFormatter()
+        formatter.locale = strings.locale
+        formatter.dateFormat = "M/d HH:mm"
+        self.formatter = formatter
+
         super.init()
-        statusItem.button?.title = "<//> puz"
+        statusItem.button?.title = strings.appMenuTitle
         configureMenu()
     }
 
-    func update(nextDate: Date?, todayCount: Int) {
-        if let nextDate {
-            nextItem.title = "다음: \(formatter.string(from: nextDate))"
+    func update(next: ScheduledRoutine?, todayCompleted: Int, todayTotal: Int, hasRoutines: Bool) {
+        if hasRoutines {
+            nextItem.title = strings.menuNext(
+                routineTitle: next.map { strings.routineTitle($0.routine) },
+                dateText: next.map { formatter.string(from: $0.date) }
+            )
+            todayItem.title = strings.todayProgress(completed: todayCompleted, total: todayTotal)
         } else {
-            nextItem.title = "다음: 없음"
+            nextItem.title = strings.menuNoRoutines
+            todayItem.title = strings.todayProgress(completed: 0, total: 0)
         }
-        todayItem.title = "오늘 완료: \(todayCount)"
+    }
+
+    func update(nextDate: Date?, todayCount: Int) {
+        nextItem.title = strings.menuNext(dateText: nextDate.map { formatter.string(from: $0) })
+        todayItem.title = strings.todayCompleted(count: todayCount)
     }
 
     private func configureMenu() {
@@ -37,16 +53,16 @@ final class MenuBarController: NSObject {
         menu.addItem(todayItem)
         menu.addItem(.separator())
 
-        let startItem = NSMenuItem(title: "지금 시작", action: #selector(startNow), keyEquivalent: "")
+        let startItem = NSMenuItem(title: strings.startNow, action: #selector(startNow), keyEquivalent: "")
         startItem.target = self
         menu.addItem(startItem)
 
-        let settingsItem = NSMenuItem(title: "puz 설정", action: #selector(openSettings), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: strings.settingsTitle, action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
 
         menu.addItem(.separator())
-        let quitItem = NSMenuItem(title: "종료", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: strings.quit, action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
 

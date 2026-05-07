@@ -6,6 +6,7 @@ final class SettingsWindowController {
     var onSave: (() -> Void)?
 
     private let store: RoutineStore
+    private let strings = PuzLocalization.current
     private var window: NSWindow?
 
     init(store: RoutineStore) {
@@ -13,179 +14,515 @@ final class SettingsWindowController {
     }
 
     func show(afterSave: (() -> Void)? = nil) {
-        let routine = store.routines.first ?? Routine.defaultBurpee()
-        let view = RoutineSettingsView(routine: routine) { [weak self] updated in
-            self?.store.saveRoutines([updated])
-            self?.onSave?()
-            afterSave?()
-            self?.window?.orderOut(nil)
-        }
+        let routines = store.routines
+        let view = RoutinesSettingsView(
+            routines: routines,
+            onSave: { [weak self] updated in
+                self?.store.replaceRoutines(updated)
+                self?.onSave?()
+                afterSave?()
+                self?.window?.orderOut(nil)
+            },
+            onCancel: { [weak self] in
+                self?.window?.orderOut(nil)
+            }
+        )
 
         if window == nil {
             window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 580, height: 590),
+                contentRect: NSRect(x: 0, y: 0, width: 880, height: 660),
                 styleMask: [.titled, .closable, .miniaturizable],
                 backing: .buffered,
                 defer: false
             )
-            window?.title = "puz 설정"
+            window?.title = strings.settingsTitle
             window?.isReleasedWhenClosed = false
             window?.center()
         }
+        window?.title = strings.settingsTitle
         window?.contentView = NSHostingView(rootView: view)
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 }
 
-struct RoutineSettingsView: View {
-    private let routineID: UUID
-    private let compatibilitySnoozePolicy: SnoozePolicy
-    private let onSave: (Routine) -> Void
+struct RoutinesSettingsView: View {
+    private let onSave: ([Routine]) -> Void
+    private let onCancel: () -> Void
+    private let strings = PuzLocalization.current
 
-    @State private var title: String
-    @State private var actionType: ActionType
-    @State private var isEnabled: Bool
-    @State private var usesRandomWindow: Bool
-    @State private var fixedHour: Int
-    @State private var fixedMinute: Int
-    @State private var startHour: Int
-    @State private var startMinute: Int
-    @State private var endHour: Int
-    @State private var endMinute: Int
-    @State private var countdownMinutes: Int
-    @State private var maxSnoozeCount: Int
+    @State private var routines: [Routine]
+    @State private var savedSnapshot: [Routine]
+    @State private var selectedID: UUID?
 
-    init(routine: Routine, onSave: @escaping (Routine) -> Void) {
-        self.routineID = routine.id
-        self.compatibilitySnoozePolicy = routine.snoozePolicy
+    init(routines: [Routine], onSave: @escaping ([Routine]) -> Void, onCancel: @escaping () -> Void) {
         self.onSave = onSave
-        _title = State(initialValue: routine.title)
-        _actionType = State(initialValue: routine.actionType)
-        _isEnabled = State(initialValue: routine.isEnabled)
-        _countdownMinutes = State(initialValue: max(1, routine.countdownSeconds / 60))
-        _maxSnoozeCount = State(initialValue: routine.snoozePolicy.maxCount)
-
-        switch routine.schedule {
-        case .fixedTime(let time):
-            _usesRandomWindow = State(initialValue: false)
-            _fixedHour = State(initialValue: time.hour)
-            _fixedMinute = State(initialValue: time.minute)
-            _startHour = State(initialValue: 9)
-            _startMinute = State(initialValue: 0)
-            _endHour = State(initialValue: 18)
-            _endMinute = State(initialValue: 0)
-        case .randomWindow(let start, let end):
-            _usesRandomWindow = State(initialValue: true)
-            _fixedHour = State(initialValue: start.hour)
-            _fixedMinute = State(initialValue: start.minute)
-            _startHour = State(initialValue: start.hour)
-            _startMinute = State(initialValue: start.minute)
-            _endHour = State(initialValue: end.hour)
-            _endMinute = State(initialValue: end.minute)
-        }
+        self.onCancel = onCancel
+        _routines = State(initialValue: routines)
+        _savedSnapshot = State(initialValue: routines)
+        _selectedID = State(initialValue: routines.first?.id)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            Text("puz 설정")
-                .font(.title.bold())
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                sidebar
+                    .frame(width: 250)
+                Divider()
+                detail
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
 
-            Toggle("활성화", isOn: $isEnabled)
+            Divider()
+            footer
+        }
+        .frame(width: 880, height: 660)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .onChange(of: routines) { _ in
+            repairSelection()
+        }
+    }
 
-            TextField("루틴 이름", text: $title)
-                .textFieldStyle(.roundedBorder)
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(strings.routinesTitle)
+                    .font(.title3.bold())
+                Spacer()
+                Text("\(routines.count)")
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 18)
 
-            Picker("행동", selection: $actionType) {
-                ForEach(ActionType.allCases, id: \.self) { type in
-                    Text(type.displayName).tag(type)
+            if routines.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(strings.noRoutinesTitle)
+                        .font(.headline)
+                    Text(strings.noRoutinesMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(16)
+                Spacer()
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(routines) { routine in
+                            routineRow(routine)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
                 }
             }
 
-            Picker("일정", selection: $usesRandomWindow) {
-                Text("랜덤 구간").tag(true)
-                Text("지정 시각").tag(false)
-            }
-            .pickerStyle(.segmented)
+            Divider()
+            HStack(spacing: 8) {
+                Button(strings.newRoutineLabel) {
+                    addRoutine()
+                }
+                .keyboardShortcut("n")
 
-            if usesRandomWindow {
-                HStack(spacing: 14) {
-                    Text("시작")
-                    TimeStepper(hour: $startHour, minute: $startMinute)
-                    Text("종료")
-                    TimeStepper(hour: $endHour, minute: $endMinute)
+                Button(strings.duplicateRoutineLabel) {
+                    duplicateSelectedRoutine()
+                }
+                .disabled(selectedID == nil)
+
+                Button(strings.deleteRoutineLabel) {
+                    deleteSelectedRoutine()
+                }
+                .disabled(selectedID == nil)
+            }
+            .font(.footnote)
+            .padding([.horizontal, .bottom], 12)
+        }
+    }
+
+    private var detail: some View {
+        Group {
+            if let index = selectedIndex {
+                ScrollView {
+                    RoutineEditorView(routine: $routines[index], strings: strings)
+                        .padding(24)
                 }
             } else {
-                HStack(spacing: 14) {
-                    Text("시각")
-                    TimeStepper(hour: $fixedHour, minute: $fixedMinute)
-                }
-            }
-
-            Stepper(value: bounded($countdownMinutes, range: 1...120), in: 1...120) {
-                HStack(spacing: 8) {
-                    Text("카운트다운")
-                    NumericTimeField(value: $countdownMinutes, range: 1...120, width: 54, padded: false)
-                    Text("분")
-                    Text("클릭해서 직접 입력 가능")
-                        .font(.footnote)
+                VStack(spacing: 10) {
+                    Text(strings.noRoutinesTitle)
+                        .font(.title3.bold())
+                    Text(strings.selectRoutineMessage)
                         .foregroundStyle(.secondary)
+                    Button(strings.newRoutineLabel) {
+                        addRoutine()
+                    }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+    }
 
-            Stepper(value: bounded($maxSnoozeCount, range: 0...9), in: 0...9) {
-                HStack(spacing: 8) {
-                    Text("미루기 최대")
-                    NumericTimeField(value: $maxSnoozeCount, range: 0...9, width: 42, padded: false)
-                    Text("회")
-                    Text("시작 화면에 남은 횟수로 표시")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+    private var footer: some View {
+        HStack(spacing: 12) {
+            if let validationMessage {
+                Text(validationMessage)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .lineLimit(2)
+            } else if isDirty {
+                Text(strings.unsavedChangesLabel)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            } else {
+                Spacer(minLength: 0)
             }
-
-            Text("시간은 스테퍼로 빠르게 조정하고, 숫자 칸을 클릭하면 정확히 입력할 수 있어요.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            Text("미루기는 시작 화면에서 1분 후 / 30분 후 / 랜덤 버튼으로 고릅니다.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
 
             Spacer()
 
-            HStack {
-                Spacer()
-                Button("저장") {
-                    onSave(makeRoutine())
-                }
-                .keyboardShortcut(.defaultAction)
-                .buttonStyle(.borderedProminent)
+            Button(strings.cancelLabel) {
+                routines = savedSnapshot
+                selectedID = savedSnapshot.first?.id
+                onCancel()
             }
+            .keyboardShortcut(.cancelAction)
+
+            Button(strings.saveLabel) {
+                let prepared = preparedRoutines()
+                savedSnapshot = prepared
+                routines = prepared
+                onSave(prepared)
+            }
+            .keyboardShortcut(.defaultAction)
+            .buttonStyle(.borderedProminent)
+            .tint(isDirty ? Color.red : Color.accentColor)
+            .disabled(!isDirty || validationMessage != nil)
         }
-        .padding(24)
-        .frame(width: 580, height: 590)
+        .padding(16)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private func makeRoutine() -> Routine {
-        let schedule: Schedule = usesRandomWindow
-            ? .randomWindow(start: DailyTime(hour: startHour, minute: startMinute), end: DailyTime(hour: endHour, minute: endMinute))
-            : .fixedTime(DailyTime(hour: fixedHour, minute: fixedMinute))
+    private func routineRow(_ routine: Routine) -> some View {
+        let isSelected = routine.id == selectedID
+        let title = displayTitle(for: routine)
+        let firstWindow = routine.windows.sortedByStart.first
+        return Button {
+            selectedID = routine.id
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(routine.isEnabled ? Color.green : Color.gray)
+                        .frame(width: 8, height: 8)
+                    Text(title)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Spacer()
+                }
+                HStack(spacing: 6) {
+                    Text(strings.routineRunsSummary(runsPerDay: routine.frequency.runsPerDay))
+                    if let firstWindow {
+                        Text("·")
+                        Text(strings.routineWindowSummary(start: firstWindow.start, end: firstWindow.end))
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(isSelected ? Color.accentColor.opacity(0.16) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var selectedIndex: Int? {
+        guard let selectedID else { return nil }
+        return routines.firstIndex(where: { $0.id == selectedID })
+    }
+
+    private var isDirty: Bool {
+        preparedRoutines() != savedSnapshot
+    }
+
+    private var validationMessage: String? {
+        for routine in routines {
+            if let message = validationMessage(for: routine) {
+                return message
+            }
+        }
+        return nil
+    }
+
+    private func addRoutine() {
+        let window = RoutineWindow(
+            label: strings.windowsLabel,
+            start: DailyTime(hour: 9, minute: 0),
+            end: DailyTime(hour: 18, minute: 0)
+        )
+        let routine = Routine(
+            title: strings.newRoutineDefaultTitle,
+            actionType: .stretch,
+            schedule: .randomWindow(start: window.start, end: window.end),
+            countdownSeconds: 5 * 60,
+            snoozePolicy: SnoozePolicy(maxCount: 2, intervalMinutes: 30),
+            isEnabled: true,
+            activeWeekdays: Set(Weekday.allCases),
+            windows: [window],
+            frequency: RoutineFrequency(runsPerDay: 1, minimumGapMinutes: 60, distribution: .evenlySpread)
+        )
+        routines.append(routine)
+        selectedID = routine.id
+    }
+
+    private func duplicateSelectedRoutine() {
+        guard let index = selectedIndex else { return }
+        let original = routines[index]
+        let duplicate = Routine(
+            title: strings.copiedRoutineTitle(displayTitle(for: original)),
+            actionType: original.actionType,
+            schedule: original.schedule,
+            countdownSeconds: original.countdownSeconds,
+            snoozePolicy: original.snoozePolicy,
+            isEnabled: original.isEnabled,
+            activeWeekdays: original.activeWeekdays,
+            windows: original.windows.map { RoutineWindow(label: $0.label, start: $0.start, end: $0.end) },
+            frequency: original.frequency
+        )
+        routines.insert(duplicate, at: index + 1)
+        selectedID = duplicate.id
+    }
+
+    private func deleteSelectedRoutine() {
+        guard let index = selectedIndex else { return }
+        routines.remove(at: index)
+        if routines.indices.contains(index) {
+            selectedID = routines[index].id
+        } else {
+            selectedID = routines.last?.id
+        }
+    }
+
+    private func repairSelection() {
+        if let selectedID, routines.contains(where: { $0.id == selectedID }) {
+            return
+        }
+        selectedID = routines.first?.id
+    }
+
+    private func preparedRoutines() -> [Routine] {
+        routines.map(normalizedRoutine)
+    }
+
+    private func normalizedRoutine(_ routine: Routine) -> Routine {
+        let windows = routine.windows.sortedByStart
+        let firstWindow = windows.first ?? RoutineWindow(start: DailyTime(hour: 9, minute: 0), end: DailyTime(hour: 18, minute: 0))
         return Routine(
-            id: routineID,
-            title: title,
-            actionType: actionType,
-            schedule: schedule,
-            countdownSeconds: TimeInputSanitizer.clampedValue(from: "\(countdownMinutes)", fallback: 10, range: 1...120) * 60,
-            snoozePolicy: SnoozePolicy(
-                maxCount: TimeInputSanitizer.clampedValue(from: "\(maxSnoozeCount)", fallback: compatibilitySnoozePolicy.maxCount, range: 0...9),
-                intervalMinutes: compatibilitySnoozePolicy.intervalMinutes
-            ),
-            isEnabled: isEnabled
+            id: routine.id,
+            title: routine.title,
+            actionType: routine.actionType,
+            schedule: .randomWindow(start: firstWindow.start, end: firstWindow.end),
+            countdownSeconds: routine.countdownSeconds,
+            snoozePolicy: routine.snoozePolicy,
+            isEnabled: routine.isEnabled,
+            activeWeekdays: routine.activeWeekdays,
+            windows: windows,
+            frequency: routine.frequency
         )
     }
 
-    private func bounded(_ binding: Binding<Int>, range: ClosedRange<Int>) -> Binding<Int> {
+    private func validationMessage(for routine: Routine) -> String? {
+        let title = displayTitle(for: routine)
+        let windows = routine.windows.sortedByStart
+        guard !routine.activeWeekdays.isEmpty else { return strings.validationNoWeekdays(routineTitle: title) }
+        guard !windows.isEmpty else { return strings.validationNoWindows(routineTitle: title) }
+        guard windows.allSatisfy({ $0.start.totalMinutes < $0.end.totalMinutes }) else {
+            return strings.validationInvalidWindow(routineTitle: title)
+        }
+        guard !windows.hasOverlaps else { return strings.validationOverlappingWindows(routineTitle: title) }
+
+        let availableMinutes = windows.reduce(0) { $0 + max(0, $1.end.totalMinutes - $1.start.totalMinutes) }
+        let requiredGapMinutes = max(0, routine.frequency.runsPerDay - 1) * routine.frequency.minimumGapMinutes
+        guard requiredGapMinutes <= availableMinutes else {
+            return strings.validationImpossibleFrequency(routineTitle: title)
+        }
+        return nil
+    }
+
+    private func displayTitle(for routine: Routine) -> String {
+        let trimmed = routine.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? strings.actionName(routine.actionType) : trimmed
+    }
+}
+
+struct RoutineEditorView: View {
+    @Binding var routine: Routine
+    let strings: PuzLocalization
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            Text(strings.routineTitle(routine))
+                .font(.largeTitle.bold())
+                .lineLimit(1)
+
+            settingsSection(strings.basicsSectionTitle) {
+                Toggle(strings.enabledLabel, isOn: $routine.isEnabled)
+
+                TextField(strings.routineNamePlaceholder, text: $routine.title)
+                    .textFieldStyle(.roundedBorder)
+
+                Picker(strings.actionLabel, selection: $routine.actionType) {
+                    ForEach(ActionType.allCases, id: \.self) { type in
+                        Text(strings.actionName(type)).tag(type)
+                    }
+                }
+
+                Stepper(value: bounded($routine.countdownSeconds, range: 60...(120 * 60), step: 60), in: 60...(120 * 60), step: 60) {
+                    HStack(spacing: 8) {
+                        Text(strings.countdownLabel)
+                        NumericTimeField(value: countdownMinutesBinding, range: 1...120, width: 54, padded: false)
+                        Text(strings.minuteUnit)
+                    }
+                }
+
+                Stepper(value: bounded($routine.snoozePolicy.maxCount, range: 0...9), in: 0...9) {
+                    HStack(spacing: 8) {
+                        Text(strings.maxSnoozeLabel)
+                        NumericTimeField(value: $routine.snoozePolicy.maxCount, range: 0...9, width: 42, padded: false)
+                        Text(strings.countUnit)
+                    }
+                }
+            }
+
+            settingsSection(strings.whenSectionTitle) {
+                Text(strings.weekdaysLabel)
+                    .font(.subheadline.bold())
+                weekdayChips
+
+                HStack {
+                    Text(strings.windowsLabel)
+                        .font(.subheadline.bold())
+                    Spacer()
+                    Button(strings.addWindowLabel) {
+                        addWindow()
+                    }
+                }
+
+                VStack(spacing: 10) {
+                    ForEach($routine.windows) { $window in
+                        windowEditor(window: $window)
+                    }
+                }
+            }
+
+            settingsSection(strings.howOftenSectionTitle) {
+                Stepper(value: bounded($routine.frequency.runsPerDay, range: 1...12), in: 1...12) {
+                    HStack(spacing: 8) {
+                        Text(strings.runsPerDayLabel)
+                        NumericTimeField(value: $routine.frequency.runsPerDay, range: 1...12, width: 44, padded: false)
+                        Text(strings.countUnit)
+                    }
+                }
+
+                Stepper(value: bounded($routine.frequency.minimumGapMinutes, range: 0...360), in: 0...360, step: 5) {
+                    HStack(spacing: 8) {
+                        Text(strings.minimumGapLabel)
+                        NumericTimeField(value: $routine.frequency.minimumGapMinutes, range: 0...360, width: 54, padded: false)
+                        Text(strings.minuteUnit)
+                    }
+                }
+
+                Picker(strings.distributionLabel, selection: $routine.frequency.distribution) {
+                    ForEach(DistributionMode.allCases, id: \.self) { mode in
+                        Text(strings.distributionName(mode)).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var weekdayChips: some View {
+        HStack(spacing: 8) {
+            ForEach(Weekday.allCases, id: \.self) { weekday in
+                let isActive = routine.activeWeekdays.contains(weekday)
+                Button {
+                    toggleWeekday(weekday)
+                } label: {
+                    Text(strings.weekdayShortName(weekday))
+                        .frame(minWidth: 30)
+                }
+                .buttonStyle(.bordered)
+                .tint(isActive ? Color.accentColor : Color.gray)
+            }
+        }
+    }
+
+    private var countdownMinutesBinding: Binding<Int> {
+        Binding(
+            get: { max(1, routine.countdownSeconds / 60) },
+            set: { routine.countdownSeconds = TimeInputSanitizer.clampedValue(from: "\($0)", fallback: 10, range: 1...120) * 60 }
+        )
+    }
+
+    private func settingsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+            content()
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    private func windowEditor(window: Binding<RoutineWindow>) -> some View {
+        HStack(spacing: 10) {
+            TextField(strings.windowLabelPlaceholder, text: window.label)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 120)
+
+            Text(strings.startLabel)
+            TimeStepper(hour: window.start.hour, minute: window.start.minute)
+
+            Text(strings.endLabel)
+            TimeStepper(hour: window.end.hour, minute: window.end.minute)
+
+            Spacer()
+
+            Button(role: .destructive) {
+                routine.windows.removeAll { $0.id == window.wrappedValue.id }
+            } label: {
+                Image(systemName: "trash")
+            }
+            .help(strings.deleteWindowLabel)
+            .disabled(routine.windows.count <= 1)
+        }
+        .padding(10)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    private func toggleWeekday(_ weekday: Weekday) {
+        if routine.activeWeekdays.contains(weekday) {
+            routine.activeWeekdays.remove(weekday)
+        } else {
+            routine.activeWeekdays.insert(weekday)
+        }
+    }
+
+    private func addWindow() {
+        routine.windows.append(
+            RoutineWindow(
+                label: strings.windowsLabel,
+                start: DailyTime(hour: 9, minute: 0),
+                end: DailyTime(hour: 18, minute: 0)
+            )
+        )
+    }
+
+    private func bounded(_ binding: Binding<Int>, range: ClosedRange<Int>, step: Int = 1) -> Binding<Int> {
         Binding(
             get: { binding.wrappedValue },
             set: { binding.wrappedValue = min(max($0, range.lowerBound), range.upperBound) }
@@ -264,5 +601,29 @@ struct NumericTimeField: View {
     private func formatted(_ value: Int) -> String {
         let clamped = min(max(value, range.lowerBound), range.upperBound)
         return padded ? String(format: "%02d", clamped) : "\(clamped)"
+    }
+}
+
+private extension DailyTime {
+    var totalMinutes: Int {
+        hour * 60 + minute
+    }
+}
+
+private extension Array where Element == RoutineWindow {
+    var sortedByStart: [RoutineWindow] {
+        sorted {
+            if $0.start.totalMinutes == $1.start.totalMinutes {
+                return $0.end.totalMinutes < $1.end.totalMinutes
+            }
+            return $0.start.totalMinutes < $1.start.totalMinutes
+        }
+    }
+
+    var hasOverlaps: Bool {
+        let sorted = sortedByStart
+        return zip(sorted, sorted.dropFirst()).contains { previous, next in
+            next.start.totalMinutes < previous.end.totalMinutes
+        }
     }
 }

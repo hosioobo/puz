@@ -21,11 +21,12 @@ For each release, keep these in sync:
    - `swift run PauseCoreTestRunner`
    - `swift build --product PauseApp`
    - `Scripts/build_app.sh`
-5. Confirm the public tree does not include local build products, private notes, `.hermes/`, or generated iconsets.
+5. Confirm the public tree does not include local build products, private notes, private agent files, or generated iconsets.
 6. Commit with a clear release message.
 7. Tag the commit with the matching `v<version>` tag.
 8. Push `main` and the version tag.
 
 ## Current release
 
+- `v0.2.0` — multi-routine virtual-slot checkpoint with typed localization and routine settings.
 - `v0.1.0` — first public source checkpoint.
