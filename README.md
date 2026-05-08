@@ -5,7 +5,7 @@
 <p align="center">
   <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-0A84FF?style=for-the-badge&logo=apple&logoColor=white">
   <img alt="Swift 5.9+" src="https://img.shields.io/badge/Swift-5.9%2B-F05138?style=for-the-badge&logo=swift&logoColor=white">
-  <img alt="Version 0.2.0 dev" src="https://img.shields.io/badge/version-0.2.0%20dev-EEF4FF?style=for-the-badge">
+  <img alt="Version 0.2.0" src="https://img.shields.io/badge/version-0.2.0-EEF4FF?style=for-the-badge">
   <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-111111?style=for-the-badge"></a>
 </p>
 
@@ -13,13 +13,13 @@
 
 puz is a small macOS menu bar app for movement and break routines that are intentionally hard to ignore. It can show a fullscreen start prompt, cover every connected display during the countdown, and return control only after you press **Resume**.
 
-> **v0.2.0** is the active development line. `v0.1.0` remains the first public source checkpoint.
+> **v0.2.0** is the current public source checkpoint. `v0.1.0` remains the first public source checkpoint.
 
 ## What is puz?
 
 puz is a local-first routine interrupter for macOS. It lives in the menu bar, waits for the next scheduled moment, then opens a focused fullscreen flow so the break is visible, simple, and harder to dismiss by reflex.
 
-The current app is intentionally small: one default routine, one compact settings window, one fullscreen prompt flow, and local persistence for settings and completion records.
+The current app is intentionally small: a default routine set, one compact settings window, one fullscreen prompt flow, and local persistence for settings and completion/skip records.
 
 ## Why puz?
 
@@ -28,11 +28,11 @@ Regular reminders are easy to swipe away. puz is built for the moment when you w
 ## Features
 
 - **Menu bar app** — compact `<//>` identity with status and settings access.
-- **Randomized break prompts** — fixed-time or one random trigger inside a daily window.
+- **Multi-routine scheduling** — enabled routines project daily virtual slots from weekdays, time windows, run counts, gaps, and distribution.
 - **Fullscreen focus flow** — prompt and countdown can cover every connected display.
 - **Resume-required completion** — the countdown finishing is not the end; you explicitly press **Resume** to return.
-- **Snooze limits** — short, long, and random snooze choices with remaining allowance shown before starting.
-- **Local records** — settings and completion records stay on your Mac.
+- **Snooze and skip choices** — short, long, and random snooze choices, plus explicit close-session actions that keep completion records honest.
+- **Local records** — settings, completion records, and skip records stay on your Mac.
 - **System-language copy** — English and Korean app copy selected from the system-preferred language, with English fallback.
 - **Theme-ready visuals** — the default visual language is blue/off-white, with a Black & White theme planned.
 
@@ -73,7 +73,7 @@ Open `dist/puz.app`. puz runs as a menu bar app rather than a Dock app.
 
 ### 2. Configure your routine
 
-Use the settings window to adjust the routine name, duration, daily schedule, and snooze limit.
+Use the settings window to adjust routine names, durations, active weekdays, time windows, daily run counts, minimum gaps, distribution mode, and snooze limits.
 
 ### 3. Wait for a prompt
 
@@ -116,30 +116,29 @@ Snoozing is a pre-start decision; it is not shown inside the active countdown.
 
 ### Active days and time windows
 
-The current schedule model is deliberately small:
+The current schedule model supports multiple enabled routines. Each routine can define active weekdays, one or more same-day time windows, runs per day, a minimum gap, and either evenly-spread or stable-random distribution.
 
-- fixed time, or
-- one random time inside a daily window.
+### Virtual slots
 
-### Random timing
+At runtime, puz derives concrete virtual slots from routine rules, then picks the earliest available slot across enabled routines. Slot metadata is stored with completion and skip records so one completed slot does not hide later valid slots for the same routine.
 
-For random-window schedules, the core schedule engine chooses the next valid trigger from the active routine settings and the current time.
+### Compatibility
 
-### Completion records
+Legacy fixed-time routines still work: a fixed time maps to one virtual slot at the scheduled time.
 
-Completion records are stored locally. Runtime scheduling uses those records to avoid treating “completed once today” as a blanket reason to hide every later valid candidate.
+### Future schedule work
 
-### Future routine model
-
-The intended future model is more flexible: multiple routines, weekday/time-window rules, daily random counts, minimum spacing, exceptions, quiet times, and richer snooze policy.
+Cross-midnight windows, exceptions, quiet times, and richer snooze policy are planned product decisions rather than implicit behavior today.
 
 ## Settings
 
 The current settings window covers:
 
-- routine name
-- duration
-- schedule mode and time/window
+- routine list management
+- enabled state and routine name
+- action type and duration
+- active weekdays and time windows
+- runs per day, minimum gap, and distribution mode
 - snooze limit
 
 Language currently follows the system-preferred language. A manual app-language selector can be added later if needed.
@@ -156,7 +155,11 @@ The default puz theme is the current blue/off-white fullscreen visual system.
 
 ## Screenshots
 
-Screenshots and short capture media are intentionally omitted for now. The public page is currently text-only while the fullscreen flow is still settling.
+These screenshots are generated from the current SwiftUI fullscreen views and contain no desktop content.
+
+| Start prompt | Countdown |
+| --- | --- |
+| ![puz fullscreen start prompt](docs/assets/screenshots/puz-start-prompt.png) | ![puz fullscreen countdown](docs/assets/screenshots/puz-countdown.png) |
 
 ## Development
 
@@ -213,10 +216,7 @@ The SwiftPM target names still use the original `Pause*` prefix internally. The 
 ## Roadmap
 
 - Signed and notarized release build.
-- Screenshots and short demo media after the fullscreen flow stabilizes.
-- Multiple routines.
-- Weekday and multi-window scheduling.
-- Daily random counts and minimum spacing.
+- Short demo media.
 - Exceptions / quiet times.
 - Manual language selection.
 - Black & White theme.
