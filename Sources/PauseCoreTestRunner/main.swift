@@ -31,6 +31,11 @@ func makeDate(_ calendar: Calendar, year: Int, month: Int, day: Int, hour: Int, 
     DateComponents(calendar: calendar, timeZone: calendar.timeZone, year: year, month: month, day: day, hour: hour, minute: minute).date!
 }
 
+func sourceText(_ relativePath: String) throws -> String {
+    let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(relativePath)
+    return try String(contentsOf: url, encoding: .utf8)
+}
+
 let tests: [(String, () throws -> Void)] = [
     ("v2 routine scheduling models expose stable basics", {
         let calendar = makeCalendar()
@@ -416,6 +421,46 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(PuzLanguage.preferred(from: ["ko-KR", "en-US"]), .korean, "Korean locale wins")
         try expectEqual(PuzLanguage.preferred(from: ["en-US", "ko-KR"]), .english, "English locale wins")
         try expectEqual(PuzLanguage.preferred(from: ["fr-FR"]), .english, "unsupported locales fall back to English")
+    }),
+    ("app surface does not include system notifications", {
+        let bannedTokensByFile: [(path: String, tokens: [String])] = [
+            (
+                "Sources/PauseApp/AppDelegate.swift",
+                [
+                    "import UserNotifications",
+                    "UNUserNotificationCenterDelegate",
+                    "UNUserNotificationCenter",
+                    "requestAuthorization"
+                ]
+            ),
+            (
+                "Sources/PauseApp/RuntimeScheduler.swift",
+                [
+                    "import UserNotifications",
+                    "notificationID",
+                    "scheduleNotification",
+                    "cancelPendingNotification",
+                    "UNMutableNotificationContent",
+                    "UNNotificationRequest",
+                    "UNTimeIntervalNotificationTrigger",
+                    "removePendingNotificationRequests"
+                ]
+            ),
+            (
+                "Sources/PauseCore/PuzLocalization.swift",
+                [
+                    "notificationTitle",
+                    "notificationBody"
+                ]
+            )
+        ]
+
+        for check in bannedTokensByFile {
+            let text = try sourceText(check.path)
+            for token in check.tokens {
+                try expect(!text.contains(token), "\(check.path) should not contain \(token)")
+            }
+        }
     }),
     ("localization exposes Korean and English app copy", {
         let english = PuzLocalization(language: .english)

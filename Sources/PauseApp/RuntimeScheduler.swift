@@ -1,6 +1,5 @@
 import Foundation
 import AppKit
-import UserNotifications
 import PauseCore
 
 final class RuntimeScheduler {
@@ -9,14 +8,12 @@ final class RuntimeScheduler {
     private let overlayController: OverlayController
     private let menuBarController: MenuBarController
     private let scheduleEngine = ScheduleEngine()
-    private let strings = PuzLocalization.current
 
     private var timer: Timer?
     private var activeRoutine: Routine?
     private var activeSlot: VirtualSlot?
     private var activeSnoozeCount = 0
     private var activeTriggerDate: Date?
-    private var notificationID: String?
 
     init(
         store: RoutineStore,
@@ -40,7 +37,6 @@ final class RuntimeScheduler {
     func stop() {
         timer?.invalidate()
         timer = nil
-        cancelPendingNotification()
         clearActiveRoutine()
     }
 
@@ -59,8 +55,6 @@ final class RuntimeScheduler {
     }
 
     private func scheduleNextRoutine() {
-        cancelPendingNotification()
-
         let now = Date()
         guard let next = scheduleEngine.nextRuntimeTrigger(
             for: store.routines,
@@ -78,7 +72,6 @@ final class RuntimeScheduler {
         activeSnoozeCount = 0
         activeTriggerDate = next.date
         scheduleTimer(for: next.routine, at: next.date)
-        scheduleNotification(for: next.routine, at: next.date, slot: next.slot)
         updateMenu(next: next)
     }
 
@@ -120,14 +113,12 @@ final class RuntimeScheduler {
         activeTriggerDate = nextDate
         promptController.dismiss()
         scheduleTimer(for: routine, at: nextDate)
-        scheduleNotification(for: routine, at: nextDate, slot: activeSlot)
         updateMenu(next: ScheduledRoutine(routine: routine, date: nextDate, slot: activeSlot))
     }
 
     private func startCountdown(for routine: Routine) {
         timer?.invalidate()
         timer = nil
-        cancelPendingNotification()
         promptController.dismiss()
         let usedSnoozeCount = activeSnoozeCount
 
@@ -175,7 +166,6 @@ final class RuntimeScheduler {
     private func skipToday(_ routine: Routine) {
         timer?.invalidate()
         timer = nil
-        cancelPendingNotification()
         promptController.dismiss()
         let scheduledAt = activeSlot?.scheduledAt ?? activeTriggerDate ?? Date()
         store.appendSkipRecord(
@@ -194,37 +184,9 @@ final class RuntimeScheduler {
     private func cancelActiveFullscreenFlow() {
         timer?.invalidate()
         timer = nil
-        cancelPendingNotification()
         promptController.dismiss()
         clearActiveRoutine()
         scheduleNextRoutine()
-    }
-
-    private func scheduleNotification(for routine: Routine, at date: Date, slot: VirtualSlot?) {
-        cancelPendingNotification()
-        let interval = max(1, date.timeIntervalSinceNow)
-        let content = UNMutableNotificationContent()
-        let routineTitle = strings.routineTitle(routine)
-        content.title = strings.notificationTitle(routineTitle: routineTitle)
-        content.body = strings.notificationBody
-        content.sound = .default
-
-        let idSuffix = slot?.slotKey ?? String(Int(date.timeIntervalSince1970))
-        let id = "puz.\(routine.id.uuidString).\(idSuffix)"
-        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
-        let request = UNNotificationRequest(identifier: id, content: content, trigger: trigger)
-        notificationID = id
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                NSLog("puz notification scheduling error: \(error.localizedDescription)")
-            }
-        }
-    }
-
-    private func cancelPendingNotification() {
-        guard let notificationID else { return }
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [notificationID])
-        self.notificationID = nil
     }
 
     private func updateMenu(next: ScheduledRoutine?) {

@@ -465,19 +465,6 @@ public struct PuzLocalization: Equatable, Hashable {
         }
     }
 
-    public func notificationTitle(routineTitle: String) -> String {
-        switch language {
-        case .english: return "Time for \(routineTitle)"
-        case .korean: return "\(routineTitle) 시간"
-        }
-    }
-
-    public var notificationBody: String {
-        switch language {
-        case .english: return "Start now, or snooze for 1 min, 30 min, or a random delay."
-        case .korean: return "지금 시작하거나 1분/30분/랜덤으로 미룰 수 있어요."
-        }
-    }
 
     public var enabledLabel: String {
         switch language {

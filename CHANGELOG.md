@@ -8,7 +8,7 @@ All notable public changes to puz are recorded here.
 
 - Core `PuzLocalization` catalog for English and Korean app copy.
 - System-preferred language selection with English fallback.
-- Localized menu bar, fullscreen prompt, countdown overlay, notification, and settings-window strings.
+- Localized menu bar, fullscreen prompt, countdown overlay, and settings-window strings.
 - Tests for language selection and representative Korean/English copy.
 - Multi-routine model with enable/disable, active weekdays, same-day windows, runs per day, minimum gaps, and evenly-spread or stable-random distribution.
 - Derived virtual slots for each routine run, including `scheduledAt` and `slotKey` metadata on completion and skip records.

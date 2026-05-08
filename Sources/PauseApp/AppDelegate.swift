@@ -1,8 +1,7 @@
 import AppKit
-import UserNotifications
 import PauseCore
 
-final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate {
     private let store = RoutineStore()
     private var menuBarController: MenuBarController!
     private var promptController: PromptController!
@@ -12,9 +11,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-
-        UNUserNotificationCenter.current().delegate = self
-        requestNotificationPermission()
 
         promptController = PromptController()
         overlayController = OverlayController()
@@ -46,24 +42,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
 
     func applicationWillTerminate(_ notification: Notification) {
         runtimeScheduler?.stop()
-    }
-
-    private func requestNotificationPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
-            if let error {
-                NSLog("puz notification permission error: \(error.localizedDescription)")
-            }
-            if !granted {
-                NSLog("puz notification permission denied; in-app prompt will still appear.")
-            }
-        }
-    }
-
-    func userNotificationCenter(
-        _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification,
-        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
-    ) {
-        completionHandler([.banner, .sound])
     }
 }
