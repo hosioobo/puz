@@ -5,7 +5,7 @@
 <p align="center">
   <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-0A84FF?style=for-the-badge&logo=apple&logoColor=white">
   <img alt="Swift 5.9+" src="https://img.shields.io/badge/Swift-5.9%2B-F05138?style=for-the-badge&logo=swift&logoColor=white">
-  <img alt="Version 0.2.0" src="https://img.shields.io/badge/version-0.2.0-EEF4FF?style=for-the-badge">
+  <img alt="Version 0.2.1" src="https://img.shields.io/badge/version-0.2.1-EEF4FF?style=for-the-badge">
   <a href="./LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-111111?style=for-the-badge"></a>
 </p>
 
@@ -13,7 +13,7 @@
 
 puz is a small macOS menu bar app for movement and break routines that are intentionally hard to ignore. It can show a fullscreen start prompt, cover every connected display during the countdown, and return control only after you press **Resume**.
 
-> **v0.2.0** is the current public source checkpoint. `v0.1.0` remains the first public source checkpoint.
+> **v0.2.1** is the current public release. `v0.2.0` remains the multi-routine source checkpoint.
 
 ## What is puz?
 
@@ -38,9 +38,11 @@ Regular reminders are easy to swipe away. puz is built for the moment when you w
 
 ## Quick Install
 
-### Download
+### Download the macOS zip
 
-A signed/notarized binary is not published yet. For now, build the app from source.
+Download [`puz-macos.zip`](https://github.com/hosioobo/puz/releases/latest/download/puz-macos.zip) from the latest GitHub Release, unzip it, then open `puz.app`.
+
+The current app is unsigned and not notarized, so macOS may require manual first-open approval. If Finder blocks the app, Control-click `puz.app`, choose **Open**, then confirm.
 
 ### Build from source
 
@@ -57,19 +59,17 @@ swift build --product PauseApp
 Scripts/build_app.sh
 ```
 
-### Open on macOS
+### Open a source build
 
 ```bash
 open dist/puz.app
 ```
 
-Because the app is not signed or notarized yet, macOS may require the usual manual approval for locally built apps.
-
 ## Getting Started
 
 ### 1. Launch puz
 
-Open `dist/puz.app`. puz runs as a menu bar app rather than a Dock app.
+Open the unzipped `puz.app`, or `dist/puz.app` if you built from source. puz runs as a menu bar app rather than a Dock app.
 
 ### 2. Configure your routine
 

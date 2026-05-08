@@ -2,6 +2,22 @@
 
 All notable public changes to puz are recorded here.
 
+## [v0.2.1] - 2026-05-08
+
+### Added
+
+- Downloadable macOS release asset: `puz-macos.zip`, containing `puz.app`.
+- README screenshots generated from the current fullscreen views.
+
+### Changed
+
+- README install docs now separate the GitHub Release download path from source builds.
+- App metadata now targets version `0.2.1` with build number `3`.
+
+### Fixed
+
+- Removed system notification permission and scheduling from the current app path; puz now stays in the menu bar/fullscreen flow without requesting notification access.
+
 ## [v0.2.0] - 2026-05-07
 
 ### Added

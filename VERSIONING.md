@@ -28,5 +28,6 @@ For each release, keep these in sync:
 
 ## Current release
 
+- `v0.2.1` — downloadable macOS zip release, README screenshots, and notification-free app surface.
 - `v0.2.0` — multi-routine virtual-slot checkpoint with typed localization and routine settings.
 - `v0.1.0` — first public source checkpoint.

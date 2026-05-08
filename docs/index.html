@@ -87,12 +87,12 @@
 
     <main>
       <section class="hero" id="en">
-        <div class="eyebrow">macOS menu bar app · v0.2.0 dev</div>
+        <div class="eyebrow">macOS menu bar app · v0.2.1 release</div>
         <h1>Movement breaks that interrupt you back.</h1>
         <p class="lead">puz is a tiny macOS app for fullscreen routine prompts and countdowns. It is built for breaks you actually want to do, not reminders you instantly dismiss.</p>
         <div class="actions">
-          <a class="button primary" href="https://github.com/hosioobo/puz">View source</a>
-          <a class="button" href="https://github.com/hosioobo/puz#readme">Read the README</a>
+          <a class="button primary" href="https://github.com/hosioobo/puz/releases/latest/download/puz-macos.zip">Download macOS zip</a>
+          <a class="button" href="https://github.com/hosioobo/puz">View source</a>
           <a class="button" href="#ko">한국어 설명</a>
         </div>
       </section>
@@ -104,7 +104,7 @@
         </article>
         <article class="card">
           <h3>Small schedule model</h3>
-          <p>Use either a fixed time or one random trigger inside a daily window. v0.2.0 keeps scheduling intentionally simple.</p>
+          <p>Use multiple routines with weekdays, time windows, run counts, gaps, and predictable or stable-random distribution.</p>
         </article>
         <article class="card">
           <h3>Local-first</h3>
@@ -114,19 +114,19 @@
 
       <section class="section two">
         <div>
-          <h2>What v0.2.0 includes</h2>
+          <h2>What v0.2.1 includes</h2>
           <ul>
             <li>Menu bar app with a compact <code>&lt;//&gt;</code> identity.</li>
-            <li>Default burpee routine, 10-minute countdown, and 09:00–18:00 random window.</li>
+            <li>Multi-routine scheduling with virtual slots and local completion/skip records.</li>
             <li>Start prompt with short, long, and random snooze options.</li>
-            <li>Snooze limit display before the countdown starts.</li>
-            <li>Settings for routine name, duration, schedule, and snooze limit.</li>
+            <li>Fullscreen countdown and Resume-required completion.</li>
             <li>English/Korean app copy selected from the system-preferred language.</li>
+            <li>No system notification permission request in the current app path.</li>
           </ul>
         </div>
         <div>
-          <h2>No screenshots yet</h2>
-          <p class="muted">This first public page is text-only on purpose. Screenshots and short capture media can come later after the visual flow settles.</p>
+          <h2>Download</h2>
+          <p class="muted">Download <code>puz-macos.zip</code> from GitHub Releases, unzip it, then open <code>puz.app</code>. The app is unsigned/not notarized for now, so macOS may ask for manual first-open approval.</p>
         </div>
       </section>
 
@@ -141,7 +141,7 @@ Scripts/build_app.sh</code></pre>
         </div>
         <div>
           <h2>Status</h2>
-          <p class="muted">v0.2.0 is the active development line. It is not yet a signed or notarized binary distribution.</p>
+          <p class="muted">v0.2.1 publishes an unsigned macOS zip first. Signed and notarized distribution remains future work.</p>
         </div>
       </section>
 
@@ -161,7 +161,7 @@ Scripts/build_app.sh</code></pre>
           </article>
           <article class="card">
             <h3>단순한 일정</h3>
-            <p>지정 시각 또는 하루 랜덤 구간 중 하나를 사용합니다. v0.2.0에서도 의도적으로 작고 직관적인 모델만 둡니다.</p>
+            <p>여러 루틴이 요일, 시간 구간, 하루 횟수, 최소 간격, 고르게/안정적 랜덤 배치를 기준으로 virtual slot을 만듭니다.</p>
           </article>
           <article class="card">
             <h3>언어 기반</h3>
@@ -176,7 +176,7 @@ Scripts/build_app.sh</code></pre>
     </main>
 
     <footer>
-      <p>puz v0.2.0 dev · Source: <a href="https://github.com/hosioobo/puz">github.com/hosioobo/puz</a></p>
+      <p>puz v0.2.1 · Source: <a href="https://github.com/hosioobo/puz">github.com/hosioobo/puz</a></p>
     </footer>
   </div>
 </body>
