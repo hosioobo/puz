@@ -285,6 +285,8 @@ struct CountdownOverlayView: View {
             return ["drop", "wind", "sparkles"]
         case .stretch:
             return ["arrow.triangle.2.circlepath", "person.crop.circle", "figure.walk"]
+        case .eyeRest:
+            return ["eye", "arrow.up.left.and.arrow.down.right", "sparkles"]
         case .exercise:
             return ["figure.walk", "checkmark.seal", "wind"]
         }

@@ -5,6 +5,7 @@ public enum ActionType: String, Codable, CaseIterable, Equatable, Hashable {
     case standUp
     case drinkWater
     case stretch
+    case eyeRest
     case exercise
 
     public var displayName: String {
@@ -13,6 +14,7 @@ public enum ActionType: String, Codable, CaseIterable, Equatable, Hashable {
         case .standUp: return "일어나기"
         case .drinkWater: return "물 마시기"
         case .stretch: return "스트레칭"
+        case .eyeRest: return "눈 쉬기"
         case .exercise: return "운동"
         }
     }
@@ -172,6 +174,12 @@ public enum SessionEndAction: String, Codable, CaseIterable, Equatable, Hashable
     case justClose
 }
 
+public enum OnboardingStatus: String, Codable, Equatable {
+    case notStarted
+    case dismissedBeforeConfirm
+    case completed
+}
+
 public struct SnoozePromptState: Equatable, Hashable {
     public let policy: SnoozePolicy
     public let usedCount: Int
@@ -205,6 +213,8 @@ public struct Routine: Codable, Identifiable, Equatable, Hashable {
     public var activeWeekdays: Set<Weekday>
     public var windows: [RoutineWindow]
     public var frequency: RoutineFrequency
+    public var exactDailyTimes: [DailyTime]?
+    public var glyphSymbolName: String?
 
     public init(
         id: UUID = UUID(),
@@ -216,7 +226,9 @@ public struct Routine: Codable, Identifiable, Equatable, Hashable {
         isEnabled: Bool = true,
         activeWeekdays: Set<Weekday> = Set(Weekday.allCases),
         windows: [RoutineWindow]? = nil,
-        frequency: RoutineFrequency = RoutineFrequency()
+        frequency: RoutineFrequency = RoutineFrequency(),
+        exactDailyTimes: [DailyTime]? = nil,
+        glyphSymbolName: String? = nil
     ) {
         self.id = id
         self.title = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? actionType.displayName : title
@@ -229,6 +241,9 @@ public struct Routine: Codable, Identifiable, Equatable, Hashable {
         let resolvedWindows = windows ?? [RoutineWindow.from(schedule: schedule)]
         self.windows = resolvedWindows.isEmpty ? [RoutineWindow.from(schedule: schedule)] : resolvedWindows
         self.frequency = frequency
+        self.exactDailyTimes = exactDailyTimes?.isEmpty == true ? nil : exactDailyTimes
+        let trimmedGlyph = glyphSymbolName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.glyphSymbolName = trimmedGlyph?.isEmpty == true ? nil : trimmedGlyph
     }
 
     public static func defaultBurpee(
@@ -379,6 +394,20 @@ public struct ScheduleEngine {
               let weekday = Weekday(rawValue: calendar.component(.weekday, from: day)),
               routine.activeWeekdays.contains(weekday) else {
             return []
+        }
+
+        if let exactTimes = routine.exactDailyTimes, !exactTimes.isEmpty {
+            return exactTimes.enumerated().compactMap { index, time in
+                guard let scheduledAt = date(for: time, onDayContaining: day) else { return nil }
+                let indexInDay = index + 1
+                return VirtualSlot(
+                    routine: routine,
+                    scheduledAt: scheduledAt,
+                    slotKey: slotKey(for: routine, on: day, indexInDay: indexInDay),
+                    windowID: nil,
+                    indexInDay: indexInDay
+                )
+            }
         }
 
         let windows = routine.windows.compactMap { window -> SlotWindowBounds? in
@@ -744,6 +773,7 @@ public final class RoutineStore {
         static let routines = "pause.routines"
         static let completionRecords = "pause.completionRecords"
         static let skipRecords = "pause.skipRecords"
+        static let onboardingStatus = "pause.onboardingStatus"
         static let storeVersion = "pause.storeVersion"
     }
 
@@ -759,7 +789,7 @@ public final class RoutineStore {
 
     public var routines: [Routine] {
         guard defaults.data(forKey: Key.routines) != nil else {
-            return bootstrapDefaultRoutines()
+            return []
         }
 
         guard defaults.integer(forKey: Key.storeVersion) == Self.currentStoreVersion,
@@ -776,6 +806,31 @@ public final class RoutineStore {
 
     public var skipRecords: [SkipRecord] {
         load([SkipRecord].self, key: Key.skipRecords) ?? []
+    }
+
+    public var onboardingStatus: OnboardingStatus {
+        if let rawStatus = defaults.string(forKey: Key.onboardingStatus),
+           let status = OnboardingStatus(rawValue: rawStatus) {
+            return status
+        }
+        return hasValidCurrentVersionRoutineData() ? .completed : .notStarted
+    }
+
+    public var hasCompletedOnboarding: Bool {
+        onboardingStatus == .completed
+    }
+
+    public func markOnboardingDismissedBeforeConfirm() {
+        saveOnboardingStatus(.dismissedBeforeConfirm)
+    }
+
+    public func markOnboardingCompleted() {
+        saveOnboardingStatus(.completed)
+    }
+
+    public func confirmOnboarding(_ selection: OnboardingSelection) {
+        saveRoutines(OnboardingRoutineFactory.routines(from: selection))
+        saveOnboardingStatus(.completed)
     }
 
     public func saveRoutines(_ routines: [Routine]) {
@@ -814,7 +869,9 @@ public final class RoutineStore {
             windows: original.windows.map { window in
                 RoutineWindow(label: window.label, start: window.start, end: window.end)
             },
-            frequency: original.frequency
+            frequency: original.frequency,
+            exactDailyTimes: original.exactDailyTimes,
+            glyphSymbolName: original.glyphSymbolName
         )
         var routines = self.routines
         routines.append(duplicate)
@@ -854,6 +911,14 @@ public final class RoutineStore {
         return try? decoder.decode(type, from: data)
     }
 
+    private func hasValidCurrentVersionRoutineData() -> Bool {
+        guard defaults.integer(forKey: Key.storeVersion) == Self.currentStoreVersion,
+              let data = defaults.data(forKey: Key.routines) else {
+            return false
+        }
+        return (try? decoder.decode([Routine].self, from: data)) != nil
+    }
+
     private func bootstrapDefaultRoutines() -> [Routine] {
         let routines = Routine.defaultRoutines()
         persistRoutines(routines)
@@ -863,6 +928,10 @@ public final class RoutineStore {
     private func persistRoutines(_ routines: [Routine]) {
         save(routines, key: Key.routines)
         defaults.set(Self.currentStoreVersion, forKey: Key.storeVersion)
+    }
+
+    private func saveOnboardingStatus(_ status: OnboardingStatus) {
+        defaults.set(status.rawValue, forKey: Key.onboardingStatus)
     }
 
     private func save<T: Encodable>(_ value: T, key: String) {

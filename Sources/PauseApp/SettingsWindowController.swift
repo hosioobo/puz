@@ -286,7 +286,9 @@ struct RoutinesSettingsView: View {
             isEnabled: original.isEnabled,
             activeWeekdays: original.activeWeekdays,
             windows: original.windows.map { RoutineWindow(label: $0.label, start: $0.start, end: $0.end) },
-            frequency: original.frequency
+            frequency: original.frequency,
+            exactDailyTimes: original.exactDailyTimes,
+            glyphSymbolName: original.glyphSymbolName
         )
         routines.insert(duplicate, at: index + 1)
         selectedID = duplicate.id
@@ -314,38 +316,25 @@ struct RoutinesSettingsView: View {
     }
 
     private func normalizedRoutine(_ routine: Routine) -> Routine {
-        let windows = routine.windows.sortedByStart
-        let firstWindow = windows.first ?? RoutineWindow(start: DailyTime(hour: 9, minute: 0), end: DailyTime(hour: 18, minute: 0))
-        return Routine(
-            id: routine.id,
-            title: routine.title,
-            actionType: routine.actionType,
-            schedule: .randomWindow(start: firstWindow.start, end: firstWindow.end),
-            countdownSeconds: routine.countdownSeconds,
-            snoozePolicy: routine.snoozePolicy,
-            isEnabled: routine.isEnabled,
-            activeWeekdays: routine.activeWeekdays,
-            windows: windows,
-            frequency: routine.frequency
-        )
+        RoutineSettingsNormalizer.normalized(routine)
     }
 
     private func validationMessage(for routine: Routine) -> String? {
         let title = displayTitle(for: routine)
-        let windows = routine.windows.sortedByStart
-        guard !routine.activeWeekdays.isEmpty else { return strings.validationNoWeekdays(routineTitle: title) }
-        guard !windows.isEmpty else { return strings.validationNoWindows(routineTitle: title) }
-        guard windows.allSatisfy({ $0.start.totalMinutes < $0.end.totalMinutes }) else {
+        switch RoutineValidator.validationIssue(for: routine) {
+        case .noWeekdays:
+            return strings.validationNoWeekdays(routineTitle: title)
+        case .noWindows:
+            return strings.validationNoWindows(routineTitle: title)
+        case .invalidWindow:
             return strings.validationInvalidWindow(routineTitle: title)
-        }
-        guard !windows.hasOverlaps else { return strings.validationOverlappingWindows(routineTitle: title) }
-
-        let availableMinutes = windows.reduce(0) { $0 + max(0, $1.end.totalMinutes - $1.start.totalMinutes) }
-        let requiredGapMinutes = max(0, routine.frequency.runsPerDay - 1) * routine.frequency.minimumGapMinutes
-        guard requiredGapMinutes <= availableMinutes else {
+        case .overlappingWindows:
+            return strings.validationOverlappingWindows(routineTitle: title)
+        case .impossibleFrequency:
             return strings.validationImpossibleFrequency(routineTitle: title)
+        case nil:
+            return nil
         }
-        return nil
     }
 
     private func displayTitle(for routine: Routine) -> String {
@@ -357,6 +346,7 @@ struct RoutinesSettingsView: View {
 struct RoutineEditorView: View {
     @Binding var routine: Routine
     let strings: PuzLocalization
+    @State private var isAdvanced = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
@@ -393,51 +383,62 @@ struct RoutineEditorView: View {
                 }
             }
 
-            settingsSection(strings.whenSectionTitle) {
-                Text(strings.weekdaysLabel)
-                    .font(.subheadline.bold())
-                weekdayChips
+            DisclosureGroup(isExpanded: $isAdvanced) {
+                VStack(alignment: .leading, spacing: 16) {
+                    settingsSection(strings.whenSectionTitle) {
+                        Text(strings.weekdaysLabel)
+                            .font(.subheadline.bold())
+                        weekdayChips
 
-                HStack {
-                    Text(strings.windowsLabel)
-                        .font(.subheadline.bold())
-                    Spacer()
-                    Button(strings.addWindowLabel) {
-                        addWindow()
+                        HStack {
+                            Text(strings.windowsLabel)
+                                .font(.subheadline.bold())
+                            Spacer()
+                            Button(strings.addWindowLabel) {
+                                addWindow()
+                            }
+                        }
+
+                        VStack(spacing: 10) {
+                            ForEach($routine.windows) { $window in
+                                windowEditor(window: $window)
+                            }
+                        }
+                    }
+
+                    settingsSection(strings.howOftenSectionTitle) {
+                        Stepper(value: bounded($routine.frequency.runsPerDay, range: 1...12), in: 1...12) {
+                            HStack(spacing: 8) {
+                                Text(strings.runsPerDayLabel)
+                                NumericTimeField(value: $routine.frequency.runsPerDay, range: 1...12, width: 44, padded: false)
+                                Text(strings.countUnit)
+                            }
+                        }
+
+                        Stepper(value: bounded($routine.frequency.minimumGapMinutes, range: 0...360), in: 0...360, step: 5) {
+                            HStack(spacing: 8) {
+                                Text(strings.minimumGapLabel)
+                                NumericTimeField(value: $routine.frequency.minimumGapMinutes, range: 0...360, width: 54, padded: false)
+                                Text(strings.minuteUnit)
+                            }
+                        }
+
+                        Picker(strings.distributionLabel, selection: $routine.frequency.distribution) {
+                            ForEach(DistributionMode.allCases, id: \.self) { mode in
+                                Text(strings.distributionName(mode)).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
                     }
                 }
-
-                VStack(spacing: 10) {
-                    ForEach($routine.windows) { $window in
-                        windowEditor(window: $window)
-                    }
-                }
+            } label: {
+                Text(strings.advancedSettingsTitle)
+                    .font(.headline)
             }
-
-            settingsSection(strings.howOftenSectionTitle) {
-                Stepper(value: bounded($routine.frequency.runsPerDay, range: 1...12), in: 1...12) {
-                    HStack(spacing: 8) {
-                        Text(strings.runsPerDayLabel)
-                        NumericTimeField(value: $routine.frequency.runsPerDay, range: 1...12, width: 44, padded: false)
-                        Text(strings.countUnit)
-                    }
-                }
-
-                Stepper(value: bounded($routine.frequency.minimumGapMinutes, range: 0...360), in: 0...360, step: 5) {
-                    HStack(spacing: 8) {
-                        Text(strings.minimumGapLabel)
-                        NumericTimeField(value: $routine.frequency.minimumGapMinutes, range: 0...360, width: 54, padded: false)
-                        Text(strings.minuteUnit)
-                    }
-                }
-
-                Picker(strings.distributionLabel, selection: $routine.frequency.distribution) {
-                    ForEach(DistributionMode.allCases, id: \.self) { mode in
-                        Text(strings.distributionName(mode)).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-            }
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .controlBackgroundColor))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

@@ -58,6 +58,8 @@ struct PuzRoutineGlyph: View {
             return "drop"
         case .stretch:
             return "figure.walk"
+        case .eyeRest:
+            return "eye"
         }
     }
 }

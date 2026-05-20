@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var promptController: PromptController!
     private var overlayController: OverlayController!
     private var settingsWindowController: SettingsWindowController!
+    private var onboardingWindowController: OnboardingWindowController!
     private var runtimeScheduler: RuntimeScheduler!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -16,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         overlayController = OverlayController()
         menuBarController = MenuBarController()
         settingsWindowController = SettingsWindowController(store: store)
+        onboardingWindowController = OnboardingWindowController(store: store)
 
         runtimeScheduler = RuntimeScheduler(
             store: store,
@@ -25,10 +27,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         menuBarController.onStartNow = { [weak self] in
-            self?.runtimeScheduler.startNow()
+            guard let self else { return }
+            if self.store.hasCompletedOnboarding {
+                self.runtimeScheduler.startNow()
+            } else {
+                self.onboardingWindowController.show()
+            }
         }
         menuBarController.onOpenSettings = { [weak self] in
             self?.settingsWindowController.show()
+        }
+        menuBarController.onOpenOnboarding = { [weak self] in
+            self?.onboardingWindowController.show()
         }
         menuBarController.onQuit = {
             NSApp.terminate(nil)
@@ -36,8 +46,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         settingsWindowController.onSave = { [weak self] in
             self?.runtimeScheduler.reloadAndSchedule()
         }
+        onboardingWindowController.onConfirm = { [weak self] in
+            self?.runtimeScheduler.reloadAndSchedule()
+        }
 
-        runtimeScheduler.reloadAndSchedule()
+        if store.hasCompletedOnboarding {
+            runtimeScheduler.reloadAndSchedule()
+        } else {
+            menuBarController.update(
+                next: nil,
+                todayCompleted: 0,
+                todayTotal: 0,
+                hasRoutines: false,
+                onboardingStatus: store.onboardingStatus
+            )
+            if OnboardingLaunchPolicy.shouldAutoOpenSetup(status: store.onboardingStatus) {
+                onboardingWindowController.show()
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

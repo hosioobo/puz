@@ -474,14 +474,14 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(korean.routineTitle(routine), "버피", "Korean default routine title")
         try expectEqual(english.scheduleName(fixedSchedule), "Fixed time 11:30", "English schedule copy")
         try expectEqual(korean.scheduleName(fixedSchedule), "지정 시각 11:30", "Korean schedule copy")
-        try expectEqual(english.snoozeButtonTitle(.oneMinute), "1 min later", "English snooze title")
-        try expectEqual(korean.snoozeButtonTitle(.oneMinute), "1분 후", "Korean snooze title")
+        try expectEqual(english.snoozeButtonTitle(.oneMinute), "Snooze 1 min", "English snooze title")
+        try expectEqual(korean.snoozeButtonTitle(.oneMinute), "1분 미루기", "Korean snooze title")
         try expectEqual(english.snoozeRemainingText(count: 2), "2 snoozes left", "English snooze remaining")
         try expectEqual(korean.snoozeRemainingText(count: 2), "미루기 2회 남음", "Korean snooze remaining")
         try expectEqual(english.promptTitle(routineTitle: "Burpee"), "Time for Burpee", "English prompt title")
         try expectEqual(korean.promptTitle(routineTitle: "버피"), "버피 할 시간이에요", "Korean prompt title")
-        try expectEqual(english.promptSubtitle(scheduledTime: "09:30", duration: "10 min"), "09:30 reminder · 10 min countdown", "English prompt subtitle")
-        try expectEqual(korean.promptSubtitle(scheduledTime: "09:30", duration: "10분"), "09:30 알림 · 10분 카운트다운", "Korean prompt subtitle")
+        try expectEqual(english.promptSubtitle(scheduledTime: "09:30", duration: "10 min"), "09:30 slot · 10 min countdown", "English prompt subtitle")
+        try expectEqual(korean.promptSubtitle(scheduledTime: "09:30", duration: "10분"), "09:30 차례 · 10분 카운트다운", "Korean prompt subtitle")
     }),
     ("localization exposes routine settings and menu v2 copy", {
         let english = PuzLocalization(language: .english)
@@ -512,6 +512,14 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(english.validationInvalidWindow(routineTitle: "Stretch"), "Stretch has a window where start must be before end.", "English window validation")
         try expectEqual(korean.validationInvalidWindow(routineTitle: "스트레칭"), "스트레칭의 시간 구간은 시작이 종료보다 빨라야 해요.", "Korean window validation")
     }),
+    ("localization exposes eye rest action copy", {
+        let english = PuzLocalization(language: .english)
+        let korean = PuzLocalization(language: .korean)
+        try expectEqual(english.actionName(.eyeRest), "Eye rest", "English eye rest action")
+        try expectEqual(korean.actionName(.eyeRest), "눈 쉬기", "Korean eye rest action")
+        try expectEqual(english.focusText(for: .eyeRest), "Look far away and blink slowly", "English eye rest focus")
+        try expectEqual(korean.focusText(for: .eyeRest), "멀리 보고 천천히 깜빡이기", "Korean eye rest focus")
+    }),
     ("light fullscreen localization copy follows the design direction", {
         let english = PuzLocalization(language: .english)
         let korean = PuzLocalization(language: .korean)
@@ -532,8 +540,8 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(korean.completionSubtitle(routineTitle: "스트레칭", minutes: 10), "10분 스트레칭 완료했어요.", "Korean completion subtitle")
         try expectEqual(english.countdownProgressInstruction, "Resume will appear when the timer ends.", "English timer hint")
         try expectEqual(korean.countdownProgressInstruction, "타이머가 끝나면 Resume 버튼이 나타나요.", "Korean timer hint")
-        try expectEqual(english.promptHelper, "When time is up, you’ll need to press Resume to return.", "English prompt footer")
-        try expectEqual(korean.promptHelper, "시간이 끝나면 Resume을 눌러 돌아와요.", "Korean prompt footer")
+        try expectEqual(english.promptHelper, "Start begins the fullscreen countdown. Snooze asks again later. Resume appears after the timer.", "English prompt footer")
+        try expectEqual(korean.promptHelper, "시작하면 전체 화면 카운트다운이 진행돼요. 미루기는 나중에 다시 묻고, Resume은 타이머 후에 나타나요.", "Korean prompt footer")
         try expectEqual(english.resumeInstruction, "Press Resume to return to your screen.", "English resume instruction")
         try expectEqual(korean.resumeInstruction, "Resume을 눌러 화면으로 돌아가요.", "Korean resume instruction")
         try expectEqual(english.snoozeButtonSubtitle(.random), "2–29 min", "English random snooze subtitle")
@@ -541,12 +549,12 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(english.snoozeButtonSubtitle(.oneMinute), nil, "fixed snooze buttons have no subtitle")
         try expectEqual(english.endSessionTitle, "End this session?", "English end-session title")
         try expectEqual(korean.endSessionTitle, "이 세션을 끝낼까요?", "Korean end-session title")
-        try expectEqual(english.endSessionActionTitle(.remindMeLater), "Remind me later", "English remind-later action")
-        try expectEqual(korean.endSessionActionTitle(.remindMeLater), "나중에 다시 알림", "Korean remind-later action")
+        try expectEqual(english.endSessionActionTitle(.remindMeLater), "Ask me later", "English ask-later action")
+        try expectEqual(korean.endSessionActionTitle(.remindMeLater), "나중에 다시 묻기", "Korean ask-later action")
         try expectEqual(english.endSessionActionTitle(.skipToday), "Skip today", "English skip-today action")
         try expectEqual(korean.endSessionActionTitle(.skipToday), "오늘은 건너뛰기", "Korean skip-today action")
-        try expectEqual(english.endSessionActionTitle(.justClose), "Just close", "English just-close action")
-        try expectEqual(korean.endSessionActionTitle(.justClose), "그냥 닫기", "Korean just-close action")
+        try expectEqual(english.endSessionActionTitle(.justClose), "Close only", "English just-close action")
+        try expectEqual(korean.endSessionActionTitle(.justClose), "닫기만", "Korean just-close action")
     }),
     ("manual time input keeps digits and clamps to time ranges", {
         try expectEqual(TimeInputSanitizer.digitsOnly("9a:5"), "95", "digits-only filtering")
@@ -571,17 +579,355 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(overUsed.remainingCount, 0, "over limit should clamp remaining")
         try expectEqual(SnoozePolicy(maxCount: -2, intervalMinutes: 0).maxCount, 0, "negative max clamp")
     }),
-    ("fresh store uses the v2 default routine set", {
+    ("recommended puz templates expose resolved defaults", {
+        let templates = RecommendedPuzTemplate.defaults
+        try expectEqual(templates.map(\.key), [.hydrate, .stretch, .eyeRest], "template order")
+        try expectEqual(templates.map(\.isPreselected), [false, true, false], "only Stretch preselected")
+        try expectEqual(templates.map(\.actionType), [.drinkWater, .stretch, .eyeRest], "template actions")
+    }),
+    ("recommended puz templates use resolved timing defaults", {
+        let byKey = Dictionary(uniqueKeysWithValues: RecommendedPuzTemplate.defaults.map { ($0.key, $0) })
+        try expectEqual(byKey[.stretch]?.countdownSeconds, 90, "Stretch duration")
+        try expectEqual(byKey[.stretch]?.dailyTimes, [DailyTime(hour: 11, minute: 0), DailyTime(hour: 15, minute: 30)], "Stretch times")
+        try expectEqual(byKey[.hydrate]?.countdownSeconds, 20, "Hydrate duration")
+        try expectEqual(byKey[.hydrate]?.dailyTimes, [DailyTime(hour: 10, minute: 30), DailyTime(hour: 13, minute: 30), DailyTime(hour: 16, minute: 30)], "Hydrate times")
+        try expectEqual(byKey[.eyeRest]?.countdownSeconds, 20, "Eye rest duration")
+        try expectEqual(byKey[.eyeRest]?.dailyTimes, [DailyTime(hour: 10, minute: 45), DailyTime(hour: 14, minute: 15), DailyTime(hour: 17, minute: 0)], "Eye rest times")
+    }),
+    ("selected recommended templates convert to routines without persisting", {
         let defaults = makeDefaults()
         let store = RoutineStore(defaults: defaults)
-        let routines = store.routines
-        try expectEqual(routines.map(\.title), ["Stretch", "Hydrate", "Stand up"], "v2 default routine titles")
-        try expectEqual(routines.map(\.actionType), [.stretch, .drinkWater, .standUp], "v2 default action types")
-        try expectEqual(routines[0].activeWeekdays, Set([.monday, .tuesday, .wednesday, .thursday, .friday]), "Stretch active weekdays")
-        try expectEqual(routines[0].windows.first?.start, DailyTime(hour: 9, minute: 0), "default window start")
-        try expectEqual(routines[0].windows.first?.end, DailyTime(hour: 18, minute: 0), "default window end")
-        try expectEqual(routines[0].frequency, RoutineFrequency(runsPerDay: 1, minimumGapMinutes: 60, distribution: .evenlySpread), "Stretch frequency")
-        try expectEqual(routines[1].frequency, RoutineFrequency(runsPerDay: 3, minimumGapMinutes: 90, distribution: .evenlySpread), "Hydrate frequency")
+        let selection = OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil)
+        let routines = OnboardingRoutineFactory.routines(from: selection, templates: RecommendedPuzTemplate.defaults)
+
+        try expectEqual(store.routines, [], "conversion should not persist")
+        try expectEqual(routines.map(\.title), ["Stretch"], "selected routine title")
+        try expectEqual(routines.first?.actionType, .stretch, "selected routine action")
+        try expectEqual(routines.first?.countdownSeconds, 90, "selected routine duration")
+        try expectEqual(routines.first?.snoozePolicy.maxCount, 2, "selected routine max snoozes")
+    }),
+    ("recommended Stretch routine projects exact default slots", {
+        let calendar = makeCalendar()
+        let day = makeDate(calendar, year: 2026, month: 5, day: 6, hour: 0, minute: 0)
+        let selection = OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil)
+        let routine = try unwrap(OnboardingRoutineFactory.routines(from: selection).first, "Stretch routine")
+        let slots = ScheduleEngine(calendar: calendar).slots(for: routine, on: day)
+        try expectEqual(slots.map { calendar.component(.hour, from: $0.scheduledAt) }, [11, 15], "Stretch slot hours")
+        try expectEqual(slots.map { calendar.component(.minute, from: $0.scheduledAt) }, [0, 30], "Stretch slot minutes")
+    }),
+    ("confirming onboarding persists selected routines and marks completed", {
+        let defaults = makeDefaults()
+        let store = RoutineStore(defaults: defaults)
+        let selection = OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil)
+
+        store.confirmOnboarding(selection)
+
+        let reloaded = RoutineStore(defaults: defaults)
+        try expectEqual(reloaded.onboardingStatus, .completed, "onboarding completed")
+        try expectEqual(reloaded.routines.map(\.title), ["Stretch"], "confirmed routine persisted")
+    }),
+    ("dismissing onboarding before confirm leaves no active routines", {
+        let defaults = makeDefaults()
+        let store = RoutineStore(defaults: defaults)
+        store.markOnboardingDismissedBeforeConfirm()
+
+        let reloaded = RoutineStore(defaults: defaults)
+        try expectEqual(reloaded.onboardingStatus, .dismissedBeforeConfirm, "dismissed state")
+        try expectEqual(reloaded.routines, [], "dismiss should not activate routines")
+        try expect(ScheduleEngine(calendar: makeCalendar()).nextRuntimeTrigger(for: reloaded.routines, after: Date()) == nil, "nothing should schedule")
+    }),
+    ("confirming zero selected routines completes onboarding with empty routines", {
+        let defaults = makeDefaults()
+        let store = RoutineStore(defaults: defaults)
+        store.confirmOnboarding(OnboardingSelection(selectedTemplateKeys: [], customDraft: nil))
+
+        let reloaded = RoutineStore(defaults: defaults)
+        try expectEqual(reloaded.onboardingStatus, .completed, "zero selection still completes setup")
+        try expectEqual(reloaded.routines, [], "zero selection keeps empty routines")
+    }),
+    ("runtime activation returns no routines before completed onboarding", {
+        let defaults = makeDefaults()
+        let store = RoutineStore(defaults: defaults)
+        store.saveRoutines([Routine.defaultRoutines()[0]])
+        store.markOnboardingDismissedBeforeConfirm()
+
+        try expectEqual(OnboardingActivation.runtimeRoutines(from: store), [], "not completed should not schedule")
+
+        store.markOnboardingCompleted()
+        try expectEqual(OnboardingActivation.runtimeRoutines(from: store).count, 1, "completed should schedule saved routines")
+    }),
+    ("onboarding launch policy only auto opens first untouched setup", {
+        try expect(OnboardingLaunchPolicy.shouldAutoOpenSetup(status: .notStarted), "fresh setup should auto open")
+        try expect(!OnboardingLaunchPolicy.shouldAutoOpenSetup(status: .dismissedBeforeConfirm), "dismissed setup should wait for menu reopen")
+        try expect(!OnboardingLaunchPolicy.shouldAutoOpenSetup(status: .completed), "completed setup should not auto open")
+    }),
+    ("settings schedule normalization preserves exact onboarding slots until advanced changes", {
+        let calendar = makeCalendar()
+        let day = makeDate(calendar, year: 2026, month: 5, day: 6, hour: 0, minute: 0)
+        let routine = OnboardingRoutineFactory.routines(
+            from: OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil)
+        )[0]
+
+        let normalized = RoutineSettingsNormalizer.normalized(routine)
+        let slots = ScheduleEngine(calendar: calendar).slots(for: normalized, on: day)
+
+        try expectEqual(normalized.exactDailyTimes, [DailyTime(hour: 11, minute: 0), DailyTime(hour: 15, minute: 30)], "exact onboarding times stay intact")
+        try expectEqual(slots.map { calendar.component(.hour, from: $0.scheduledAt) }, [11, 15], "exact slot hours stay intact")
+        try expectEqual(slots.map { calendar.component(.minute, from: $0.scheduledAt) }, [0, 30], "exact slot minutes stay intact")
+    }),
+    ("settings schedule normalization clears exact slots after advanced schedule edits", {
+        let calendar = makeCalendar()
+        let day = makeDate(calendar, year: 2026, month: 5, day: 6, hour: 0, minute: 0)
+        var routine = OnboardingRoutineFactory.routines(
+            from: OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil)
+        )[0]
+        routine.windows = [RoutineWindow(start: DailyTime(hour: 9, minute: 0), end: DailyTime(hour: 12, minute: 0))]
+        routine.frequency = RoutineFrequency(runsPerDay: 1, minimumGapMinutes: 0, distribution: .evenlySpread)
+
+        let normalized = RoutineSettingsNormalizer.normalized(routine)
+        let slots = ScheduleEngine(calendar: calendar).slots(for: normalized, on: day)
+
+        try expectEqual(normalized.exactDailyTimes, nil, "edited advanced schedule should stop using stale exact onboarding times")
+        try expectEqual(slots.map { calendar.component(.hour, from: $0.scheduledAt) }, [10], "edited window drives slot hour")
+        try expectEqual(slots.map { calendar.component(.minute, from: $0.scheduledAt) }, [30], "edited window drives slot minute")
+    }),
+    ("settings schedule normalization keeps exact slots valid when only frequency fields drift", {
+        var routine = OnboardingRoutineFactory.routines(
+            from: OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil)
+        )[0]
+        routine.frequency = RoutineFrequency(runsPerDay: 3, minimumGapMinutes: 30, distribution: .random)
+
+        let normalized = RoutineSettingsNormalizer.normalized(routine)
+
+        try expectEqual(normalized.exactDailyTimes, [DailyTime(hour: 11, minute: 0), DailyTime(hour: 15, minute: 30)], "exact times should stay authoritative")
+        try expectEqual(normalized.frequency.runsPerDay, 2, "frequency count should follow exact slots")
+        try expectEqual(normalized.frequency.minimumGapMinutes, 0, "exact slots should not inherit stale gap")
+        try expectEqual(normalized.frequency.distribution, .evenlySpread, "exact slots should not inherit stale distribution")
+        try expectEqual(RoutineValidator.validationIssue(for: normalized), nil, "normalized exact routine should remain valid")
+    }),
+    ("runtime scheduler uses onboarding activation gate", {
+        let text = try sourceText("Sources/PauseApp/RuntimeScheduler.swift")
+        try expect(text.contains("OnboardingActivation.runtimeRoutines"), "RuntimeScheduler should use onboarding activation helper")
+    }),
+    ("today preview uses selected templates and schedule engine semantics", {
+        let calendar = makeCalendar()
+        let now = makeDate(calendar, year: 2026, month: 5, day: 6, hour: 9, minute: 0)
+        let selection = OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil)
+        let preview = OnboardingPreviewService(calendar: calendar).previewToday(selection: selection, after: now)
+
+        try expectEqual(preview.map(\.routineTitle), ["Stretch", "Stretch"], "preview titles")
+        try expectEqual(preview.map { calendar.component(.hour, from: $0.date) }, [11, 15], "preview hours")
+        try expectEqual(preview.map { calendar.component(.minute, from: $0.date) }, [0, 30], "preview minutes")
+    }),
+    ("today preview returns empty state for zero selected routines", {
+        let preview = OnboardingPreviewService(calendar: makeCalendar()).previewToday(
+            selection: OnboardingSelection(selectedTemplateKeys: [], customDraft: nil),
+            after: Date()
+        )
+        try expectEqual(preview, [], "zero selection has no preview items")
+    }),
+    ("today preview excludes already-passed slots", {
+        let calendar = makeCalendar()
+        let now = makeDate(calendar, year: 2026, month: 5, day: 6, hour: 12, minute: 0)
+        let selection = OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil)
+        let preview = OnboardingPreviewService(calendar: calendar).previewToday(selection: selection, after: now)
+
+        try expectEqual(preview.count, 1, "only afternoon stretch remains")
+        try expectEqual(calendar.component(.hour, from: preview[0].date), 15, "remaining preview hour")
+        try expectEqual(calendar.component(.minute, from: preview[0].date), 30, "remaining preview minute")
+    }),
+    ("custom routine draft exposes only minimal onboarding fields", {
+        let draft = CustomRoutineDraft(
+            name: "Walk outside",
+            glyphSymbolName: "figure.walk",
+            dailyTime: DailyTime(hour: 16, minute: 0),
+            dailyCount: 1
+        )
+        try expectEqual(draft.name, "Walk outside", "custom name")
+        try expectEqual(draft.glyphSymbolName, "figure.walk", "custom glyph")
+        try expectEqual(draft.dailyTime, DailyTime(hour: 16, minute: 0), "custom time")
+        try expectEqual(draft.dailyCount, 1, "custom count")
+    }),
+    ("routine can persist an optional custom glyph", {
+        let routine = Routine(
+            title: "Walk outside",
+            actionType: .exercise,
+            schedule: .fixedTime(DailyTime(hour: 16, minute: 0)),
+            countdownSeconds: 60,
+            snoozePolicy: SnoozePolicy(maxCount: 2, intervalMinutes: 30),
+            glyphSymbolName: "figure.walk"
+        )
+        let data = try JSONEncoder().encode(routine)
+        let decoded = try JSONDecoder().decode(Routine.self, from: data)
+        try expectEqual(decoded.glyphSymbolName, "figure.walk", "glyph persists")
+
+        let legacy = Routine(
+            title: "Stretch",
+            actionType: .stretch,
+            schedule: .fixedTime(DailyTime(hour: 11, minute: 0)),
+            countdownSeconds: 90,
+            snoozePolicy: SnoozePolicy(maxCount: 2, intervalMinutes: 30)
+        )
+        let legacyDecoded = try JSONDecoder().decode(Routine.self, from: JSONEncoder().encode(legacy))
+        try expectEqual(legacyDecoded.glyphSymbolName, nil, "missing glyph stays nil")
+    }),
+    ("custom draft converts to a routine with glyph time and count", {
+        let draft = CustomRoutineDraft(name: "Walk outside", glyphSymbolName: "figure.walk", dailyTime: DailyTime(hour: 16, minute: 0), dailyCount: 2)
+        let selection = OnboardingSelection(selectedTemplateKeys: [], customDraft: draft)
+        let routines = OnboardingRoutineFactory.routines(from: selection)
+
+        let routine = try unwrap(routines.first, "custom routine")
+        try expectEqual(routine.title, "Walk outside", "custom title")
+        try expectEqual(routine.actionType, .exercise, "custom action fallback")
+        try expectEqual(routine.glyphSymbolName, "figure.walk", "custom glyph")
+        try expectEqual(routine.frequency.runsPerDay, 2, "custom count")
+    }),
+    ("localization exposes benefit-first onboarding copy", {
+        let english = PuzLocalization(language: .english)
+        let korean = PuzLocalization(language: .korean)
+        try expectEqual(english.onboardingTitle, "Set up your first puz", "English onboarding title")
+        try expectEqual(korean.onboardingTitle, "첫 puz를 설정해요", "Korean onboarding title")
+        try expectEqual(english.onboardingWelcomeTitle, "Build a healthier break habit", "English welcome benefit title")
+        try expectEqual(korean.onboardingWelcomeTitle, "건강한 휴식 습관을 만들어요", "Korean welcome benefit title")
+        try expectEqual(korean.onboardingWelcomeBenefit, "과도한 몰입에서 잠시 벗어나 몸과 마음의 재충전을 도와요.", "Korean welcome benefit copy")
+        try expectEqual(korean.onboardingWelcomeMenuBar, "평소에는 메뉴바에 있고, 지정한 규칙에 따라 전체 화면으로 등장해요.", "Korean menu bar copy")
+        try expectEqual(korean.onboardingWelcomeSnooze, "1분, 30분 미루기로 업무 상황에 맞게 조절할 수 있어요.", "Korean snooze copy")
+        try expectEqual(korean.onboardingWelcomeResume, "카운트다운이 끝나면 Resume으로 돌아와 fresh하게 다시 집중하세요.", "Korean resume copy")
+        try expectEqual(korean.onboardingContinueButtonTitle, "계속하기", "Korean continue CTA")
+        try expectEqual(english.onboardingTemplateTitle(.eyeRest), "Eye rest", "English eye-rest card")
+        try expectEqual(korean.onboardingTemplateIntent(.stretch), "어깨, 목, 고관절을 짧게 풀어요.", "Korean stretch intent")
+        try expectEqual(english.todayPreviewHeading, "Today preview", "English preview heading")
+        try expectEqual(english.onboardingNoSelectionPreview, "No puz selected yet", "English no-selection preview")
+        try expectEqual(korean.onboardingNoSelectionPreview, "아직 선택한 puz가 없어요", "Korean no-selection preview")
+    }),
+    ("prompt copy makes snooze close and resume meanings explicit", {
+        let english = PuzLocalization(language: .english)
+        let korean = PuzLocalization(language: .korean)
+        try expectEqual(english.promptHelper, "Start begins the fullscreen countdown. Snooze asks again later. Resume appears after the timer.", "English prompt helper semantics")
+        try expectEqual(korean.promptHelper, "시작하면 전체 화면 카운트다운이 진행돼요. 미루기는 나중에 다시 묻고, Resume은 타이머 후에 나타나요.", "Korean prompt helper semantics")
+        try expectEqual(english.snoozeButtonTitle(.oneMinute), "Snooze 1 min", "English one-minute snooze title")
+        try expectEqual(english.snoozeButtonTitle(.thirtyMinutes), "Snooze 30 min", "English thirty-minute snooze title")
+        try expectEqual(english.snoozeButtonTitle(.random), "Random snooze", "English random snooze title")
+        try expectEqual(korean.snoozeButtonTitle(.oneMinute), "1분 미루기", "Korean one-minute snooze title")
+        try expectEqual(korean.snoozeButtonTitle(.thirtyMinutes), "30분 미루기", "Korean thirty-minute snooze title")
+        try expectEqual(korean.snoozeButtonTitle(.random), "랜덤 미루기", "Korean random snooze title")
+        try expectEqual(english.endSessionActionTitle(.justClose), "Close only", "English close-only title")
+        try expectEqual(korean.endSessionActionTitle(.justClose), "닫기만", "Korean close-only title")
+    }),
+    ("onboarding starts with a welcome step before routine selection", {
+        let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
+        try expect(text.contains("enum OnboardingStep"), "onboarding should model a welcome-first step")
+        try expect(text.contains("@State private var step = OnboardingStep.welcome"), "onboarding should open on the welcome step")
+        try expect(text.contains("welcomeStep"), "onboarding should render the welcome step")
+        try expect(text.contains("routineSelectionStep"), "routine selection should be a later step")
+    }),
+    ("onboarding and menu copy avoid notification language", {
+        let text = try sourceText("Sources/PauseCore/PuzLocalization.swift")
+        try expect(!text.localizedCaseInsensitiveContains("notification"), "localization should not promise notifications")
+        try expect(!text.contains("알림 일정"), "Korean copy should avoid notification-schedule framing")
+    }),
+    ("menu exposes setup action copy", {
+        let english = PuzLocalization(language: .english)
+        let korean = PuzLocalization(language: .korean)
+        try expectEqual(english.finishSetupLabel, "Finish setup", "English setup CTA")
+        try expectEqual(korean.finishSetupLabel, "설정 마치기", "Korean setup CTA")
+    }),
+    ("menu copy distinguishes setup incomplete from no active routines", {
+        let english = PuzLocalization(language: .english)
+        try expectEqual(english.menuSetupIncomplete, "Setup incomplete", "setup incomplete menu state")
+        try expectEqual(english.menuNoRoutines, "No routines", "completed-empty no routines state")
+    }),
+    ("localization exposes advanced settings copy", {
+        let english = PuzLocalization(language: .english)
+        let korean = PuzLocalization(language: .korean)
+        try expectEqual(english.advancedSettingsTitle, "Advanced schedule", "English advanced title")
+        try expectEqual(korean.advancedSettingsTitle, "고급 일정", "Korean advanced title")
+    }),
+    ("app has onboarding window controller source", {
+        let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
+        try expect(text.contains("final class OnboardingWindowController"), "onboarding controller should exist")
+    }),
+    ("app delegate gates initial scheduling on onboarding", {
+        let text = try sourceText("Sources/PauseApp/AppDelegate.swift")
+        try expect(text.contains("hasCompletedOnboarding"), "AppDelegate should check onboarding completion")
+        try expect(text.contains("OnboardingWindowController"), "AppDelegate should own onboarding controller")
+    }),
+    ("onboarding view renders recommended templates", {
+        let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
+        try expect(text.contains("RecommendedPuzTemplate.defaults"), "onboarding view should use template defaults")
+        try expect(text.contains("Toggle") || text.contains("toggle"), "onboarding cards should toggle selection")
+    }),
+    ("onboarding view uses preview service", {
+        let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
+        try expect(text.contains("OnboardingPreviewService"), "onboarding view should use preview service")
+        try expect(text.contains("onboardingNoSelectionPreview"), "onboarding view should show empty preview copy")
+    }),
+    ("onboarding custom UI stays minimal", {
+        let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
+        try expect(text.contains("CustomRoutineDraft"), "onboarding should use custom draft")
+        try expect(!text.contains("minimumGap"), "onboarding should not expose minimum gap")
+        try expect(!text.contains("DistributionMode"), "onboarding should not expose distribution")
+    }),
+    ("onboarding confirm calls confirmOnboarding", {
+        let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
+        try expect(text.contains("confirmOnboarding"), "confirm button should persist through RoutineStore.confirmOnboarding")
+    }),
+    ("menu bar supports reopening incomplete setup", {
+        let text = try sourceText("Sources/PauseApp/MenuBarController.swift")
+        try expect(text.contains("onOpenOnboarding"), "menu should expose onboarding callback")
+        try expect(text.contains("finishSetupLabel"), "menu should render setup CTA copy")
+        try expect(text.contains("onboardingStatus"), "menu update should know onboarding status")
+    }),
+    ("settings hides schedule power behind advanced disclosure", {
+        let text = try sourceText("Sources/PauseApp/SettingsWindowController.swift")
+        try expect(text.contains("advancedSettingsTitle"), "settings should render advanced settings title")
+        try expect(text.contains("DisclosureGroup") || text.contains("isAdvanced"), "settings should use an explicit advanced disclosure/state")
+    }),
+    ("routine validation rejects impossible frequency", {
+        let routine = Routine(
+            title: "Too frequent",
+            actionType: .stretch,
+            schedule: .randomWindow(start: DailyTime(hour: 9, minute: 0), end: DailyTime(hour: 10, minute: 0)),
+            countdownSeconds: 60,
+            snoozePolicy: SnoozePolicy(maxCount: 2, intervalMinutes: 30),
+            activeWeekdays: [.wednesday],
+            windows: [RoutineWindow(start: DailyTime(hour: 9, minute: 0), end: DailyTime(hour: 10, minute: 0))],
+            frequency: RoutineFrequency(runsPerDay: 4, minimumGapMinutes: 30, distribution: .evenlySpread)
+        )
+        try expectEqual(RoutineValidator.validationIssue(for: routine), .impossibleFrequency, "impossible frequency rejected")
+    }),
+    ("fresh store starts with onboarding not completed", {
+        let defaults = makeDefaults()
+        let store = RoutineStore(defaults: defaults)
+        try expectEqual(store.onboardingStatus, .notStarted, "fresh onboarding status")
+        try expect(!store.hasCompletedOnboarding, "fresh store should not be onboarded")
+    }),
+    ("persisted routines without onboarding status are treated as onboarded", {
+        let defaults = makeDefaults()
+        let existing = Routine.defaultRoutines()
+        let data = try JSONEncoder().encode(existing)
+        defaults.set(data, forKey: "pause.routines")
+        defaults.set(2, forKey: "pause.storeVersion")
+
+        let store = RoutineStore(defaults: defaults)
+        try expectEqual(store.onboardingStatus, .completed, "existing routines imply completed onboarding")
+        try expect(store.hasCompletedOnboarding, "existing routines should keep scheduling")
+        try expectEqual(store.routines.map(\.title), existing.map(\.title), "existing routines preserved")
+    }),
+    ("onboarding status persists across store instances", {
+        let defaults = makeDefaults()
+        let store = RoutineStore(defaults: defaults)
+        store.markOnboardingDismissedBeforeConfirm()
+        try expectEqual(RoutineStore(defaults: defaults).onboardingStatus, .dismissedBeforeConfirm, "dismissed state persists")
+
+        store.markOnboardingCompleted()
+        try expectEqual(RoutineStore(defaults: defaults).onboardingStatus, .completed, "completed state persists")
+    }),
+    ("fresh store has no active routines before onboarding confirmation", {
+        let defaults = makeDefaults()
+        let store = RoutineStore(defaults: defaults)
+        try expectEqual(store.routines, [], "fresh routines should not bootstrap active defaults")
+        try expectEqual(store.onboardingStatus, .notStarted, "fresh store should still need onboarding")
     }),
     ("legacy stored routine data resets to v2 defaults", {
         let defaults = makeDefaults()

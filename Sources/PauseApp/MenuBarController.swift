@@ -4,18 +4,21 @@ import PauseCore
 final class MenuBarController: NSObject {
     var onStartNow: (() -> Void)?
     var onOpenSettings: (() -> Void)?
+    var onOpenOnboarding: (() -> Void)?
     var onQuit: (() -> Void)?
 
     private let strings: PuzLocalization
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let nextItem: NSMenuItem
     private let todayItem: NSMenuItem
+    private let setupItem: NSMenuItem
     private let formatter: DateFormatter
 
     init(strings: PuzLocalization = .current) {
         self.strings = strings
         self.nextItem = NSMenuItem(title: strings.menuNextCalculating, action: nil, keyEquivalent: "")
         self.todayItem = NSMenuItem(title: strings.todayCompleted(count: 0), action: nil, keyEquivalent: "")
+        self.setupItem = NSMenuItem(title: strings.finishSetupLabel, action: #selector(openOnboarding), keyEquivalent: "")
 
         let formatter = DateFormatter()
         formatter.locale = strings.locale
@@ -27,8 +30,14 @@ final class MenuBarController: NSObject {
         configureMenu()
     }
 
-    func update(next: ScheduledRoutine?, todayCompleted: Int, todayTotal: Int, hasRoutines: Bool) {
-        if hasRoutines {
+    func update(next: ScheduledRoutine?, todayCompleted: Int, todayTotal: Int, hasRoutines: Bool, onboardingStatus: OnboardingStatus = .completed) {
+        let setupIncomplete = onboardingStatus != .completed
+        setupItem.isHidden = !setupIncomplete
+
+        if setupIncomplete {
+            nextItem.title = strings.menuSetupIncomplete
+            todayItem.title = strings.todayProgress(completed: 0, total: 0)
+        } else if hasRoutines {
             nextItem.title = strings.menuNext(
                 routineTitle: next.map { strings.routineTitle($0.routine) },
                 dateText: next.map { formatter.string(from: $0.date) }
@@ -57,6 +66,10 @@ final class MenuBarController: NSObject {
         startItem.target = self
         menu.addItem(startItem)
 
+        setupItem.target = self
+        setupItem.isHidden = true
+        menu.addItem(setupItem)
+
         let settingsItem = NSMenuItem(title: strings.settingsTitle, action: #selector(openSettings), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
@@ -75,6 +88,10 @@ final class MenuBarController: NSObject {
 
     @objc private func openSettings() {
         onOpenSettings?()
+    }
+
+    @objc private func openOnboarding() {
+        onOpenOnboarding?()
     }
 
     @objc private func quit() {

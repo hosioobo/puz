@@ -41,7 +41,8 @@ final class RuntimeScheduler {
     }
 
     func startNow() {
-        guard let routine = store.routines.first(where: { $0.isEnabled }) else {
+        let runtimeRoutines = OnboardingActivation.runtimeRoutines(from: store)
+        guard let routine = runtimeRoutines.first(where: { $0.isEnabled }) else {
             clearActiveRoutine()
             updateMenu(next: nil)
             return
@@ -56,8 +57,9 @@ final class RuntimeScheduler {
 
     private func scheduleNextRoutine() {
         let now = Date()
+        let runtimeRoutines = OnboardingActivation.runtimeRoutines(from: store)
         guard let next = scheduleEngine.nextRuntimeTrigger(
-            for: store.routines,
+            for: runtimeRoutines,
             completionRecords: store.completionRecords,
             skipRecords: store.skipRecords,
             after: now
@@ -191,15 +193,17 @@ final class RuntimeScheduler {
 
     private func updateMenu(next: ScheduledRoutine?) {
         let today = Date()
+        let runtimeRoutines = OnboardingActivation.runtimeRoutines(from: store)
         let completed = store.completions(on: today).filter { !$0.wasInterrupted }.count
-        let totalSlots = store.routines.reduce(0) { total, routine in
+        let totalSlots = runtimeRoutines.reduce(0) { total, routine in
             total + scheduleEngine.slots(for: routine, on: today).count
         }
         menuBarController.update(
             next: next,
             todayCompleted: completed,
             todayTotal: max(totalSlots, completed),
-            hasRoutines: !store.routines.isEmpty
+            hasRoutines: !runtimeRoutines.isEmpty,
+            onboardingStatus: store.onboardingStatus
         )
     }
 

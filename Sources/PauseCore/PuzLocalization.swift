@@ -43,6 +43,7 @@ public struct PuzLocalization: Equatable, Hashable {
             case .standUp: return "Stand up"
             case .drinkWater: return "Drink water"
             case .stretch: return "Stretch"
+            case .eyeRest: return "Eye rest"
             case .exercise: return "Exercise"
             }
         case .korean:
@@ -51,6 +52,7 @@ public struct PuzLocalization: Equatable, Hashable {
             case .standUp: return "일어나기"
             case .drinkWater: return "물 마시기"
             case .stretch: return "스트레칭"
+            case .eyeRest: return "눈 쉬기"
             case .exercise: return "운동"
             }
         }
@@ -118,6 +120,7 @@ public struct PuzLocalization: Equatable, Hashable {
             case .standUp: return "Time to stand up"
             case .drinkWater: return "Time to hydrate"
             case .stretch: return "Time to stretch"
+            case .eyeRest: return "Time to rest your eyes"
             case .exercise: return "Time to move"
             }
         case .korean:
@@ -138,6 +141,8 @@ public struct PuzLocalization: Equatable, Hashable {
                 return "Take a \(duration) hydration break."
             case .stretch:
                 return "Take a \(duration) break for shoulders, neck, and hips."
+            case .eyeRest:
+                return "Take a \(duration) eye break to look far away and blink slowly."
             case .exercise:
                 return "Take a \(duration) movement break."
             }
@@ -151,6 +156,8 @@ public struct PuzLocalization: Equatable, Hashable {
                 return "물을 마시는 \(duration) 휴식이에요."
             case .stretch:
                 return "어깨, 목, 고관절을 위한 \(duration) 휴식이에요."
+            case .eyeRest:
+                return "멀리 보고 천천히 깜빡이는 \(duration) 눈 휴식이에요."
             case .exercise:
                 return "몸을 움직이는 \(duration) 휴식이에요."
             }
@@ -165,6 +172,7 @@ public struct PuzLocalization: Equatable, Hashable {
             case .standUp: return "Posture and circulation"
             case .drinkWater: return "Hydration"
             case .stretch: return "Shoulders, neck, and hips"
+            case .eyeRest: return "Look far away and blink slowly"
             case .exercise: return "Movement reset"
             }
         case .korean:
@@ -173,6 +181,7 @@ public struct PuzLocalization: Equatable, Hashable {
             case .standUp: return "자세와 순환"
             case .drinkWater: return "수분 보충"
             case .stretch: return "어깨, 목, 고관절"
+            case .eyeRest: return "멀리 보고 천천히 깜빡이기"
             case .exercise: return "움직임 리셋"
             }
         }
@@ -186,6 +195,7 @@ public struct PuzLocalization: Equatable, Hashable {
             case .standUp: return "Standing up"
             case .drinkWater: return "Hydrating"
             case .stretch: return "Stretching"
+            case .eyeRest: return "Resting eyes"
             case .exercise: return "Moving"
             }
         case .korean:
@@ -194,6 +204,7 @@ public struct PuzLocalization: Equatable, Hashable {
             case .standUp: return "일어나는 중"
             case .drinkWater: return "물 마시는 중"
             case .stretch: return "스트레칭 중"
+            case .eyeRest: return "눈 쉬는 중"
             case .exercise: return "움직이는 중"
             }
         }
@@ -227,6 +238,7 @@ public struct PuzLocalization: Equatable, Hashable {
             case .standUp: return ["Stand tall", "Roll shoulders", "Look away"]
             case .drinkWater: return ["Sip water", "Breathe", "Reset"]
             case .stretch: return ["Roll shoulders", "Neck stretch", "Hip opener"]
+            case .eyeRest: return ["Look far", "Relax eyes", "Blink slowly"]
             case .exercise: return ["Move gently", "Keep form", "Cool down"]
             }
         case .korean:
@@ -235,6 +247,7 @@ public struct PuzLocalization: Equatable, Hashable {
             case .standUp: return ["바르게 서기", "어깨 돌리기", "멀리 보기"]
             case .drinkWater: return ["물 마시기", "호흡", "리셋"]
             case .stretch: return ["어깨 돌리기", "목 풀기", "고관절 열기"]
+            case .eyeRest: return ["멀리 보기", "눈 힘 빼기", "천천히 깜빡이기"]
             case .exercise: return ["천천히 움직이기", "자세 유지", "마무리"]
             }
         }
@@ -244,15 +257,15 @@ public struct PuzLocalization: Equatable, Hashable {
         switch language {
         case .english:
             switch option {
-            case .oneMinute: return "1 min later"
-            case .thirtyMinutes: return "30 min later"
-            case .random: return "Random later"
+            case .oneMinute: return "Snooze 1 min"
+            case .thirtyMinutes: return "Snooze 30 min"
+            case .random: return "Random snooze"
             }
         case .korean:
             switch option {
-            case .oneMinute: return "1분 후"
-            case .thirtyMinutes: return "30분 후"
-            case .random: return "랜덤 후"
+            case .oneMinute: return "1분 미루기"
+            case .thirtyMinutes: return "30분 미루기"
+            case .random: return "랜덤 미루기"
             }
         }
     }
@@ -318,6 +331,147 @@ public struct PuzLocalization: Equatable, Hashable {
         }
     }
 
+    public var menuSetupIncomplete: String {
+        switch language {
+        case .english: return "Setup incomplete"
+        case .korean: return "설정 미완료"
+        }
+    }
+
+    public var finishSetupLabel: String {
+        switch language {
+        case .english: return "Finish setup"
+        case .korean: return "설정 마치기"
+        }
+    }
+
+    public var onboardingTitle: String {
+        switch language {
+        case .english: return "Set up your first puz"
+        case .korean: return "첫 puz를 설정해요"
+        }
+    }
+
+    public var onboardingSubtitle: String {
+        switch language {
+        case .english: return "Pick small fullscreen breaks. Nothing starts until you confirm."
+        case .korean: return "작은 전체화면 휴식을 골라요. 확인하기 전에는 시작되지 않아요."
+        }
+    }
+
+    public var onboardingWelcomeTitle: String {
+        switch language {
+        case .english: return "Build a healthier break habit"
+        case .korean: return "건강한 휴식 습관을 만들어요"
+        }
+    }
+
+    public var onboardingWelcomeBenefit: String {
+        switch language {
+        case .english: return "Step out of over-focus for a quick body-and-mind recharge."
+        case .korean: return "과도한 몰입에서 잠시 벗어나 몸과 마음의 재충전을 도와요."
+        }
+    }
+
+    public var onboardingWelcomeMenuBar: String {
+        switch language {
+        case .english: return "puz stays in the menu bar, then appears fullscreen by your rules."
+        case .korean: return "평소에는 메뉴바에 있고, 지정한 규칙에 따라 전체 화면으로 등장해요."
+        }
+    }
+
+    public var onboardingWelcomeSnooze: String {
+        switch language {
+        case .english: return "Use 1-minute or 30-minute snooze when work needs flexibility."
+        case .korean: return "1분, 30분 미루기로 업무 상황에 맞게 조절할 수 있어요."
+        }
+    }
+
+    public var onboardingWelcomeResume: String {
+        switch language {
+        case .english: return "When the countdown ends, press Resume and return fresh."
+        case .korean: return "카운트다운이 끝나면 Resume으로 돌아와 fresh하게 다시 집중하세요."
+        }
+    }
+
+    public var onboardingContinueButtonTitle: String {
+        switch language {
+        case .english: return "Continue"
+        case .korean: return "계속하기"
+        }
+    }
+
+    public var onboardingBackButtonTitle: String {
+        switch language {
+        case .english: return "Back"
+        case .korean: return "뒤로"
+        }
+    }
+
+    public func onboardingTemplateTitle(_ key: RecommendedPuzTemplateKey) -> String {
+        switch (language, key) {
+        case (.english, .hydrate): return "Hydrate"
+        case (.english, .stretch): return "Stretch"
+        case (.english, .eyeRest): return "Eye rest"
+        case (.korean, .hydrate): return "물 마시기"
+        case (.korean, .stretch): return "스트레칭"
+        case (.korean, .eyeRest): return "눈 쉬기"
+        }
+    }
+
+    public func onboardingTemplateIntent(_ key: RecommendedPuzTemplateKey) -> String {
+        switch (language, key) {
+        case (.english, .hydrate): return "A quick water reset at useful points in the day."
+        case (.english, .stretch): return "Short shoulder, neck, and hip resets."
+        case (.english, .eyeRest): return "Look far away and blink slowly."
+        case (.korean, .hydrate): return "하루 중 필요한 때에 물 한 모금 리셋."
+        case (.korean, .stretch): return "어깨, 목, 고관절을 짧게 풀어요."
+        case (.korean, .eyeRest): return "멀리 보고 천천히 깜빡여요."
+        }
+    }
+
+    public var makeMyOwnTitle: String {
+        switch language {
+        case .english: return "Make my own"
+        case .korean: return "직접 만들기"
+        }
+    }
+
+    public var customRoutineNamePlaceholder: String {
+        switch language {
+        case .english: return "Walk outside"
+        case .korean: return "밖에 걷기"
+        }
+    }
+
+    public var todayPreviewHeading: String {
+        switch language {
+        case .english: return "Today preview"
+        case .korean: return "오늘 미리보기"
+        }
+    }
+
+    public var onboardingNoSelectionPreview: String {
+        switch language {
+        case .english: return "No puz selected yet"
+        case .korean: return "아직 선택한 puz가 없어요"
+        }
+    }
+
+    public var onboardingConfirmButtonTitle: String {
+        switch language {
+        case .english: return "Start with these puz"
+        case .korean: return "이 puz로 시작하기"
+        }
+    }
+
+    public var advancedSettingsTitle: String {
+        switch language {
+        case .english: return "Advanced schedule"
+        case .korean: return "고급 일정"
+        }
+    }
+
     public func todayCompleted(count: Int) -> String {
         switch language {
         case .english: return "Completed today: \(count)"
@@ -371,15 +525,15 @@ public struct PuzLocalization: Equatable, Hashable {
 
     public func promptSubtitle(scheduledTime: String, duration: String) -> String {
         switch language {
-        case .english: return "\(scheduledTime) reminder · \(duration) countdown"
-        case .korean: return "\(scheduledTime) 알림 · \(duration) 카운트다운"
+        case .english: return "\(scheduledTime) slot · \(duration) countdown"
+        case .korean: return "\(scheduledTime) 차례 · \(duration) 카운트다운"
         }
     }
 
     public var promptHelper: String {
         switch language {
-        case .english: return "When time is up, you’ll need to press Resume to return."
-        case .korean: return "시간이 끝나면 Resume을 눌러 돌아와요."
+        case .english: return "Start begins the fullscreen countdown. Snooze asks again later. Resume appears after the timer."
+        case .korean: return "시작하면 전체 화면 카운트다운이 진행돼요. 미루기는 나중에 다시 묻고, Resume은 타이머 후에 나타나요."
         }
     }
 
@@ -413,12 +567,12 @@ public struct PuzLocalization: Equatable, Hashable {
 
     public func endSessionActionTitle(_ action: SessionEndAction) -> String {
         switch (language, action) {
-        case (.english, .remindMeLater): return "Remind me later"
+        case (.english, .remindMeLater): return "Ask me later"
         case (.english, .skipToday): return "Skip today"
-        case (.english, .justClose): return "Just close"
-        case (.korean, .remindMeLater): return "나중에 다시 알림"
+        case (.english, .justClose): return "Close only"
+        case (.korean, .remindMeLater): return "나중에 다시 묻기"
         case (.korean, .skipToday): return "오늘은 건너뛰기"
-        case (.korean, .justClose): return "그냥 닫기"
+        case (.korean, .justClose): return "닫기만"
         }
     }
 
@@ -636,8 +790,8 @@ public struct PuzLocalization: Equatable, Hashable {
 
     public var noRoutinesMessage: String {
         switch language {
-        case .english: return "Create a routine to start scheduling puz reminders."
-        case .korean: return "새 루틴을 만들면 puz 알림 일정을 시작할 수 있어요."
+        case .english: return "Create a routine to start the puz schedule."
+        case .korean: return "새 루틴을 만들면 puz 일정을 시작할 수 있어요."
         }
     }
 

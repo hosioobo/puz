@@ -19,7 +19,7 @@ puz is a small macOS menu bar app for movement and break routines that are inten
 
 puz is a local-first routine interrupter for macOS. It lives in the menu bar, waits for the next scheduled moment, then opens a focused fullscreen flow so the break is visible, simple, and harder to dismiss by reflex.
 
-The current app is intentionally small: a default routine set, one compact settings window, one fullscreen prompt flow, and local persistence for settings and completion/skip records.
+The current app is intentionally small: a first-run setup screen, a compact settings window, one fullscreen prompt flow, and local persistence for settings and completion/skip records.
 
 ## Why puz?
 
@@ -27,8 +27,9 @@ Regular reminders are easy to swipe away. puz is built for the moment when you w
 
 ## Features
 
-- **Menu bar app** — compact `<//>` identity with status and settings access.
-- **Multi-routine scheduling** — enabled routines project daily virtual slots from weekdays, time windows, run counts, gaps, and distribution.
+- **Menu bar app** — compact `<//>` identity with status, setup, and settings access.
+- **First-run setup** — choose recommended Hydrate, Stretch, and Eye rest puz cards, or make one custom routine before anything schedules.
+- **Multi-routine scheduling** — enabled routines project daily virtual slots from exact onboarding times or advanced weekday/window rules.
 - **Fullscreen focus flow** — prompt and countdown can cover every connected display.
 - **Resume-required completion** — the countdown finishing is not the end; you explicitly press **Resume** to return.
 - **Snooze and skip choices** — short, long, and random snooze choices, plus explicit close-session actions that keep completion records honest.
@@ -71,19 +72,25 @@ open dist/puz.app
 
 Open the unzipped `puz.app`, or `dist/puz.app` if you built from source. puz runs as a menu bar app rather than a Dock app.
 
-### 2. Configure your routine
+### 2. Choose your first puz
 
-Use the settings window to adjust routine names, durations, active weekdays, time windows, daily run counts, minimum gaps, distribution mode, and snooze limits.
+On first launch, puz opens setup before scheduling anything. Pick from the recommended cards — **Stretch** starts selected, while **Hydrate** and **Eye rest** are optional — or use **Make my own** for a minimal custom routine.
 
-### 3. Wait for a prompt
+The setup screen shows a same-day preview of the selected puz slots. If you close setup before confirming, no routines are activated. You can reopen setup from the menu bar with **Finish setup**.
+
+### 3. Tune later in Settings
+
+After setup, use Settings for routine names, durations, action type, and snooze limits. Weekdays, time windows, daily run counts, minimum gaps, and distribution mode live under **Advanced schedule** so first-use setup stays small.
+
+### 4. Wait for a prompt
 
 At the next scheduled moment, puz shows the fullscreen start prompt.
 
-### 4. Start, snooze, or close
+### 5. Start, snooze, or close
 
 From the start prompt you can start the session, snooze for a fixed delay, snooze for a random delay, or close the fullscreen flow. Closing with `×` does not record completion; the runtime scheduler simply recomputes the next trigger from the routine's normal schedule rule.
 
-### 5. Resume when complete
+### 6. Resume when complete
 
 After the countdown reaches zero, press **Resume** to dismiss the fullscreen overlay and return to work.
 
@@ -116,7 +123,7 @@ Snoozing is a pre-start decision; it is not shown inside the active countdown.
 
 ### Active days and time windows
 
-The current schedule model supports multiple enabled routines. Each routine can define active weekdays, one or more same-day time windows, runs per day, a minimum gap, and either evenly-spread or stable-random distribution.
+The current schedule model supports multiple enabled routines. Recommended setup routines use exact daily slots. Advanced settings can define active weekdays, one or more same-day time windows, runs per day, a minimum gap, and either evenly-spread or stable-random distribution.
 
 ### Virtual slots
 
@@ -137,9 +144,8 @@ The current settings window covers:
 - routine list management
 - enabled state and routine name
 - action type and duration
-- active weekdays and time windows
-- runs per day, minimum gap, and distribution mode
 - snooze limit
+- **Advanced schedule**: active weekdays, time windows, runs per day, minimum gap, and distribution mode
 
 Language currently follows the system-preferred language. A manual app-language selector can be added later if needed.
 
