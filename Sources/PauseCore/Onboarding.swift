@@ -88,9 +88,56 @@ public struct CustomRoutineDraft: Equatable, Hashable, Codable {
     }
 }
 
+public struct OnboardingGlyphChoice: Equatable, Hashable, Codable {
+    public let symbolName: String
+    public let title: String
+
+    public init(symbolName: String, title: String) {
+        self.symbolName = symbolName
+        self.title = title
+    }
+
+    public static let defaults: [OnboardingGlyphChoice] = [
+        OnboardingGlyphChoice(symbolName: "figure.walk", title: "Walk"),
+        OnboardingGlyphChoice(symbolName: "figure.stand", title: "Stand"),
+        OnboardingGlyphChoice(symbolName: "figure.run", title: "Run"),
+        OnboardingGlyphChoice(symbolName: "drop", title: "Water"),
+        OnboardingGlyphChoice(symbolName: "eye", title: "Eyes"),
+        OnboardingGlyphChoice(symbolName: "sparkles", title: "Sparkles"),
+        OnboardingGlyphChoice(symbolName: "leaf", title: "Leaf"),
+        OnboardingGlyphChoice(symbolName: "flame", title: "Energy"),
+        OnboardingGlyphChoice(symbolName: "heart", title: "Heart"),
+        OnboardingGlyphChoice(symbolName: "bolt", title: "Bolt"),
+        OnboardingGlyphChoice(symbolName: "moon", title: "Rest"),
+        OnboardingGlyphChoice(symbolName: "sun.max", title: "Sun"),
+        OnboardingGlyphChoice(symbolName: "wind", title: "Breath"),
+        OnboardingGlyphChoice(symbolName: "timer", title: "Timer"),
+        OnboardingGlyphChoice(symbolName: "clock", title: "Clock"),
+        OnboardingGlyphChoice(symbolName: "calendar", title: "Calendar"),
+        OnboardingGlyphChoice(symbolName: "checkmark.circle", title: "Check"),
+        OnboardingGlyphChoice(symbolName: "star", title: "Star"),
+        OnboardingGlyphChoice(symbolName: "flag", title: "Flag"),
+        OnboardingGlyphChoice(symbolName: "target", title: "Target"),
+        OnboardingGlyphChoice(symbolName: "house", title: "Home"),
+        OnboardingGlyphChoice(symbolName: "book", title: "Read"),
+        OnboardingGlyphChoice(symbolName: "pencil", title: "Write"),
+        OnboardingGlyphChoice(symbolName: "paintbrush", title: "Create"),
+        OnboardingGlyphChoice(symbolName: "music.note", title: "Music"),
+        OnboardingGlyphChoice(symbolName: "camera", title: "Camera"),
+        OnboardingGlyphChoice(symbolName: "headphones", title: "Listen"),
+        OnboardingGlyphChoice(symbolName: "gamecontroller", title: "Play"),
+        OnboardingGlyphChoice(symbolName: "phone.down", title: "Disconnect"),
+        OnboardingGlyphChoice(symbolName: "bell", title: "Reminder")
+    ]
+}
+
 public struct OnboardingSelection: Equatable, Hashable, Codable {
     public var selectedTemplateKeys: [RecommendedPuzTemplateKey]
     public var customDraft: CustomRoutineDraft?
+
+    public var hasAnyRoutine: Bool {
+        !selectedTemplateKeys.isEmpty || customDraft != nil
+    }
 
     public init(selectedTemplateKeys: [RecommendedPuzTemplateKey], customDraft: CustomRoutineDraft?) {
         self.selectedTemplateKeys = selectedTemplateKeys

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import PauseCore
 
@@ -9,6 +10,99 @@ enum PuzFullscreenTheme {
     static let mutedText = Color(red: 0.50, green: 0.51, blue: 0.55)
     static let hairline = Color(red: 0.78, green: 0.80, blue: 0.84)
     static let ringTrack = Color(red: 0.84, green: 0.85, blue: 0.89)
+    static let dialogSurface = Color(red: 1.0, green: 0.992, blue: 0.976)
+}
+
+enum PuzKeyboardCommand {
+    case confirm
+    case moveNext
+    case movePrevious
+    case cancel
+
+    init?(event: NSEvent) {
+        let blockedModifiers: NSEvent.ModifierFlags = [.command, .control, .option]
+        guard event.modifierFlags.intersection(blockedModifiers).isEmpty else { return nil }
+
+        switch event.keyCode {
+        case 36, 76:
+            self = .confirm
+        case 124, 125:
+            self = .moveNext
+        case 123, 126:
+            self = .movePrevious
+        case 53:
+            self = .cancel
+        default:
+            return nil
+        }
+    }
+}
+
+private struct PuzKeyboardShortcutReader: NSViewRepresentable {
+    let onCommand: (PuzKeyboardCommand) -> Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onCommand: onCommand)
+    }
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        context.coordinator.view = view
+        context.coordinator.installMonitor()
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        context.coordinator.view = nsView
+        context.coordinator.onCommand = onCommand
+    }
+
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.removeMonitor()
+    }
+
+    final class Coordinator {
+        var onCommand: (PuzKeyboardCommand) -> Bool
+        weak var view: NSView?
+        private var monitor: Any?
+
+        init(onCommand: @escaping (PuzKeyboardCommand) -> Bool) {
+            self.onCommand = onCommand
+        }
+
+        func installMonitor() {
+            guard monitor == nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self,
+                      self.view?.window?.isKeyWindow == true,
+                      let command = PuzKeyboardCommand(event: event)
+                else {
+                    return event
+                }
+                return self.onCommand(command) ? nil : event
+            }
+        }
+
+        func removeMonitor() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
+            monitor = nil
+        }
+
+        deinit {
+            removeMonitor()
+        }
+    }
+}
+
+extension View {
+    func puzKeyboardShortcuts(_ onCommand: @escaping (PuzKeyboardCommand) -> Bool) -> some View {
+        background(
+            PuzKeyboardShortcutReader(onCommand: onCommand)
+                .frame(width: 0, height: 0)
+        )
+    }
 }
 
 struct PuzFullscreenBackground: View {
@@ -39,16 +133,22 @@ struct PuzBrandLockup: View {
 
 struct PuzRoutineGlyph: View {
     let actionType: ActionType
+    var symbolName: String? = nil
     var isComplete = false
 
     var body: some View {
-        Image(systemName: isComplete ? "checkmark.circle" : symbolName)
+        Image(systemName: isComplete ? "checkmark.circle" : resolvedSymbolName)
             .font(.system(size: 48, weight: .regular))
             .foregroundStyle(PuzFullscreenTheme.accent)
             .symbolRenderingMode(.hierarchical)
     }
 
-    private var symbolName: String {
+    private var resolvedSymbolName: String {
+        let trimmedSymbolName = symbolName?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmedSymbolName, !trimmedSymbolName.isEmpty {
+            return trimmedSymbolName
+        }
+
         switch actionType {
         case .burpee, .exercise:
             return "figure.walk"
@@ -89,6 +189,7 @@ struct PuzBigButtonStyle: ButtonStyle {
     var horizontalPadding: CGFloat = 24
     var cornerRadius: CGFloat = 24
     var lineWidth: CGFloat = 2
+    var isKeyboardFocused = false
 
     func makeBody(configuration: Configuration) -> some View {
         PuzBigButtonBody(
@@ -102,7 +203,8 @@ struct PuzBigButtonStyle: ButtonStyle {
             fontSize: fontSize,
             horizontalPadding: horizontalPadding,
             cornerRadius: cornerRadius,
-            lineWidth: lineWidth
+            lineWidth: lineWidth,
+            isKeyboardFocused: isKeyboardFocused
         )
     }
 }
@@ -119,12 +221,17 @@ private struct PuzBigButtonBody: View {
     let horizontalPadding: CGFloat
     let cornerRadius: CGFloat
     let lineWidth: CGFloat
+    let isKeyboardFocused: Bool
 
     @Environment(\.isEnabled) private var isEnabled
     @State private var isHovering = false
 
     private var shouldFill: Bool {
         isEnabled && (isHovering || configuration.isPressed)
+    }
+
+    private var showsKeyboardFocus: Bool {
+        isEnabled && isKeyboardFocused
     }
 
     var body: some View {
@@ -141,10 +248,17 @@ private struct PuzBigButtonBody: View {
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .stroke(accent.opacity(isEnabled ? 0.86 : 0.28), lineWidth: lineWidth)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius + 5, style: .continuous)
+                    .stroke(accent.opacity(showsKeyboardFocus ? 0.78 : 0), lineWidth: 3)
+                    .padding(-5)
+            )
+            .shadow(color: accent.opacity(showsKeyboardFocus ? 0.18 : 0), radius: 14, x: 0, y: 0)
             .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
             .animation(.easeOut(duration: 0.12), value: isHovering)
+            .animation(.easeOut(duration: 0.12), value: showsKeyboardFocus)
             .onHover { hovering in
                 isHovering = hovering
             }
@@ -182,16 +296,31 @@ struct PuzEntranceFlash: View {
     }
 }
 
+private enum PuzEndSessionDialogTarget: Hashable {
+    case action(SessionEndAction)
+    case keepGoing
+}
+
 struct PuzEndSessionDialog: View {
     let canSnooze: Bool
     let onAction: (SessionEndAction) -> Void
     let onKeepGoing: () -> Void
 
+    @State private var selectedKeyboardTarget: PuzEndSessionDialogTarget = .action(.remindMeLater)
+
     private let strings = PuzLocalization.current
+
+    private var keyboardTargets: [PuzEndSessionDialogTarget] {
+        var targets = SessionEndAction.allCases
+            .filter(isActionEnabled)
+            .map(PuzEndSessionDialogTarget.action)
+        targets.append(.keepGoing)
+        return targets
+    }
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.20)
+            Color.black.opacity(0.28)
                 .ignoresSafeArea()
 
             VStack(spacing: 24) {
@@ -210,7 +339,7 @@ struct PuzEndSessionDialog: View {
 
                 VStack(spacing: 12) {
                     ForEach(SessionEndAction.allCases, id: \.self) { action in
-                        let enabled = action != .remindMeLater || canSnooze
+                        let enabled = isActionEnabled(action)
                         Button { onAction(action) } label: {
                             VStack(spacing: 4) {
                                 Text(strings.endSessionActionTitle(action))
@@ -232,7 +361,8 @@ struct PuzEndSessionDialog: View {
                                 minHeight: 74,
                                 fontSize: 23,
                                 cornerRadius: 18,
-                                lineWidth: 1.5
+                                lineWidth: 1.5,
+                                isKeyboardFocused: selectedKeyboardTarget == .action(action)
                             )
                         )
                     }
@@ -250,7 +380,8 @@ struct PuzEndSessionDialog: View {
                             minHeight: 54,
                             fontSize: 18,
                             cornerRadius: 16,
-                            lineWidth: 1.25
+                            lineWidth: 1.25,
+                            isKeyboardFocused: selectedKeyboardTarget == .keepGoing
                         )
                     )
                     .focusable(false)
@@ -260,7 +391,7 @@ struct PuzEndSessionDialog: View {
             .frame(width: 620)
             .background(
                 RoundedRectangle(cornerRadius: 36, style: .continuous)
-                    .fill(Color.white.opacity(0.94))
+                    .fill(PuzFullscreenTheme.dialogSurface)
                     .shadow(color: Color.black.opacity(0.18), radius: 34, x: 0, y: 20)
             )
             .overlay(
@@ -268,6 +399,57 @@ struct PuzEndSessionDialog: View {
                     .stroke(PuzFullscreenTheme.hairline.opacity(0.65), lineWidth: 1)
             )
         }
+        .onAppear(perform: normalizeKeyboardSelection)
+        .onChange(of: canSnooze) { _ in normalizeKeyboardSelection() }
+        .puzKeyboardShortcuts { handleKeyboardCommand($0) }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
+    }
+
+    private func isActionEnabled(_ action: SessionEndAction) -> Bool {
+        action != .remindMeLater || canSnooze
+    }
+
+    private func normalizeKeyboardSelection() {
+        guard !keyboardTargets.contains(selectedKeyboardTarget), let firstTarget = keyboardTargets.first else { return }
+        selectedKeyboardTarget = firstTarget
+    }
+
+    private func moveKeyboardSelection(forward: Bool) {
+        guard !keyboardTargets.isEmpty else { return }
+        guard let currentIndex = keyboardTargets.firstIndex(of: selectedKeyboardTarget) else {
+            selectedKeyboardTarget = keyboardTargets[0]
+            return
+        }
+
+        let offset = forward ? 1 : -1
+        selectedKeyboardTarget = keyboardTargets[(currentIndex + offset + keyboardTargets.count) % keyboardTargets.count]
+    }
+
+    private func activateKeyboardSelection() {
+        switch selectedKeyboardTarget {
+        case .action(let action) where isActionEnabled(action):
+            onAction(action)
+        case .keepGoing:
+            onKeepGoing()
+        default:
+            normalizeKeyboardSelection()
+        }
+    }
+
+    private func handleKeyboardCommand(_ command: PuzKeyboardCommand) -> Bool {
+        switch command {
+        case .confirm:
+            activateKeyboardSelection()
+            return true
+        case .moveNext:
+            moveKeyboardSelection(forward: true)
+            return true
+        case .movePrevious:
+            moveKeyboardSelection(forward: false)
+            return true
+        case .cancel:
+            onKeepGoing()
+            return true
+        }
     }
 }

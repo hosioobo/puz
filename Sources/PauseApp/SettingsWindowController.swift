@@ -346,6 +346,7 @@ struct RoutinesSettingsView: View {
 struct RoutineEditorView: View {
     @Binding var routine: Routine
     let strings: PuzLocalization
+    private let glyphChoices = OnboardingGlyphChoice.defaults
     @State private var isAdvanced = false
 
     var body: some View {
@@ -360,11 +361,12 @@ struct RoutineEditorView: View {
                 TextField(strings.routineNamePlaceholder, text: $routine.title)
                     .textFieldStyle(.roundedBorder)
 
-                Picker(strings.actionLabel, selection: $routine.actionType) {
-                    ForEach(ActionType.allCases, id: \.self) { type in
-                        Text(strings.actionName(type)).tag(type)
+                Picker(strings.glyphLabel, selection: glyphSymbolBinding) {
+                    ForEach(glyphChoices, id: \.symbolName) { choice in
+                        Label(choice.title, systemImage: choice.symbolName).tag(choice.symbolName)
                     }
                 }
+                .pickerStyle(.menu)
 
                 Stepper(value: bounded($routine.countdownSeconds, range: 60...(120 * 60), step: 60), in: 60...(120 * 60), step: 60) {
                     HStack(spacing: 8) {
@@ -459,11 +461,33 @@ struct RoutineEditorView: View {
         }
     }
 
+    private var glyphSymbolBinding: Binding<String> {
+        Binding(
+            get: { routine.glyphSymbolName ?? defaultGlyphSymbolName(for: routine.actionType) },
+            set: { routine.glyphSymbolName = $0 }
+        )
+    }
+
     private var countdownMinutesBinding: Binding<Int> {
         Binding(
             get: { max(1, routine.countdownSeconds / 60) },
             set: { routine.countdownSeconds = TimeInputSanitizer.clampedValue(from: "\($0)", fallback: 10, range: 1...120) * 60 }
         )
+    }
+
+    private func defaultGlyphSymbolName(for actionType: ActionType) -> String {
+        switch actionType {
+        case .burpee, .exercise:
+            return "figure.walk"
+        case .standUp:
+            return "figure.stand"
+        case .drinkWater:
+            return "drop"
+        case .stretch:
+            return "figure.walk"
+        case .eyeRest:
+            return "eye"
+        }
     }
 
     private func settingsSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {

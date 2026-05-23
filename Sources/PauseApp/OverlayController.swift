@@ -165,7 +165,7 @@ struct CountdownOverlayView: View {
             VStack(spacing: 16) {
                 Spacer(minLength: 86)
 
-                PuzRoutineGlyph(actionType: routine.actionType, isComplete: session.isComplete)
+                PuzRoutineGlyph(actionType: routine.actionType, symbolName: routine.glyphSymbolName, isComplete: session.isComplete)
                     .padding(.bottom, 4)
 
                 VStack(spacing: 10) {
@@ -198,7 +198,8 @@ struct CountdownOverlayView: View {
                                 minHeight: 90,
                                 fontSize: 36,
                                 cornerRadius: 18,
-                                lineWidth: 1.5
+                                lineWidth: 1.5,
+                                isKeyboardFocused: session.isComplete && !showsEndSessionDialog
                             )
                         )
                         .padding(.top, 10)
@@ -252,7 +253,21 @@ struct CountdownOverlayView: View {
                 )
             }
         }
+        .puzKeyboardShortcuts { handleKeyboardCommand($0) }
         .animation(.easeOut(duration: 0.16), value: showsEndSessionDialog)
+    }
+
+    private func handleKeyboardCommand(_ command: PuzKeyboardCommand) -> Bool {
+        guard !showsEndSessionDialog else { return false }
+        switch command {
+        case .confirm where session.isComplete:
+            session.resume()
+            return true
+        case .moveNext, .movePrevious:
+            return session.isComplete
+        default:
+            return false
+        }
     }
 
     private var closeButton: some View {

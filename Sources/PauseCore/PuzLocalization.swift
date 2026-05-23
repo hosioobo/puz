@@ -451,6 +451,13 @@ public struct PuzLocalization: Equatable, Hashable {
         }
     }
 
+    public var glyphLabel: String {
+        switch language {
+        case .english: return "Icon"
+        case .korean: return "아이콘"
+        }
+    }
+
     public var onboardingNoSelectionPreview: String {
         switch language {
         case .english: return "No puz selected yet"
@@ -462,6 +469,13 @@ public struct PuzLocalization: Equatable, Hashable {
         switch language {
         case .english: return "Start with these puz"
         case .korean: return "이 puz로 시작하기"
+        }
+    }
+
+    public var onboardingOpenSettingsButtonTitle: String {
+        switch language {
+        case .english: return "Open settings"
+        case .korean: return "설정으로 가기"
         }
     }
 

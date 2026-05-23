@@ -4,6 +4,7 @@ import PauseCore
 
 final class OnboardingWindowController: NSObject, NSWindowDelegate {
     var onConfirm: (() -> Void)?
+    var onOpenSettings: (() -> Void)?
 
     private let store: RoutineStore
     private let strings = PuzLocalization.current
@@ -20,6 +21,11 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             onConfirm: { [weak self] in
                 self?.window?.orderOut(nil)
                 self?.onConfirm?()
+            },
+            onOpenSettings: { [weak self] in
+                self?.window?.orderOut(nil)
+                self?.onConfirm?()
+                self?.onOpenSettings?()
             },
             onDismiss: { [weak self] in
                 self?.closeAsDismissed()
@@ -68,11 +74,12 @@ private enum OnboardingStep {
 private struct OnboardingView: View {
     let store: RoutineStore
     let onConfirm: () -> Void
+    let onOpenSettings: () -> Void
     let onDismiss: () -> Void
 
     private let strings = PuzLocalization.current
     private let templates = RecommendedPuzTemplate.defaults
-    private let glyphChoices = ["figure.walk", "leaf", "drop", "eye", "sparkles"]
+    private let glyphChoices = OnboardingGlyphChoice.defaults
 
     @State private var selectedTemplateKeys: Set<RecommendedPuzTemplateKey>
     @State private var customEnabled = false
@@ -83,9 +90,15 @@ private struct OnboardingView: View {
     @State private var customCount = 1
     @State private var step = OnboardingStep.welcome
 
-    init(store: RoutineStore, onConfirm: @escaping () -> Void, onDismiss: @escaping () -> Void) {
+    init(
+        store: RoutineStore,
+        onConfirm: @escaping () -> Void,
+        onOpenSettings: @escaping () -> Void,
+        onDismiss: @escaping () -> Void
+    ) {
         self.store = store
         self.onConfirm = onConfirm
+        self.onOpenSettings = onOpenSettings
         self.onDismiss = onDismiss
         let preselected = RecommendedPuzTemplate.defaults
             .filter(\.isPreselected)
@@ -132,9 +145,8 @@ private struct OnboardingView: View {
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
                 } else {
-                    Button(strings.onboardingConfirmButtonTitle) {
-                        store.confirmOnboarding(selection)
-                        onConfirm()
+                    Button(primaryButtonTitle) {
+                        performPrimaryAction()
                     }
                     .keyboardShortcut(.defaultAction)
                     .buttonStyle(.borderedProminent)
@@ -151,6 +163,20 @@ private struct OnboardingView: View {
             welcomePoint(systemName: "menubar.rectangle", text: strings.onboardingWelcomeMenuBar)
             welcomePoint(systemName: "clock.arrow.circlepath", text: strings.onboardingWelcomeSnooze)
             welcomePoint(systemName: "arrow.uturn.right.circle.fill", text: strings.onboardingWelcomeResume)
+        }
+    }
+
+    private var primaryButtonTitle: String {
+        selection.hasAnyRoutine ? strings.onboardingConfirmButtonTitle : strings.onboardingOpenSettingsButtonTitle
+    }
+
+    private func performPrimaryAction() {
+        let currentSelection = selection
+        store.confirmOnboarding(currentSelection)
+        if currentSelection.hasAnyRoutine {
+            onConfirm()
+        } else {
+            onOpenSettings()
         }
     }
 
@@ -219,24 +245,24 @@ private struct OnboardingView: View {
                     TextField(strings.customRoutineNamePlaceholder, text: $customName)
                         .textFieldStyle(.roundedBorder)
 
-                    Picker(strings.actionLabel, selection: $customGlyphSymbolName) {
-                        ForEach(glyphChoices, id: \.self) { symbol in
-                            Label(symbol, systemImage: symbol).tag(symbol)
+                    Picker(strings.glyphLabel, selection: $customGlyphSymbolName) {
+                        ForEach(glyphChoices, id: \.symbolName) { choice in
+                            Label(choice.title, systemImage: choice.symbolName).tag(choice.symbolName)
                         }
                     }
                     .pickerStyle(.menu)
 
-                    HStack {
-                        Stepper(value: $customHour, in: 0...23) {
-                            Text("\(strings.timeLabel): \(String(format: "%02d", customHour)):\(String(format: "%02d", customMinute))")
-                        }
-                        Stepper(value: $customMinute, in: 0...55, step: 5) {
-                            Text(strings.minuteUnit)
-                        }
+                    HStack(spacing: 8) {
+                        Text(strings.timeLabel)
+                        TimeStepper(hour: $customHour, minute: $customMinute)
                     }
 
                     Stepper(value: $customCount, in: 1...12) {
-                        Text("\(strings.runsPerDayLabel): \(customCount)")
+                        HStack(spacing: 8) {
+                            Text(strings.runsPerDayLabel)
+                            NumericTimeField(value: $customCount, range: 1...12, width: 44, padded: false)
+                            Text(strings.countUnit)
+                        }
                     }
                 }
                 .padding(12)

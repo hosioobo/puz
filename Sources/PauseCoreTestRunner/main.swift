@@ -726,6 +726,18 @@ let tests: [(String, () throws -> Void)] = [
         )
         try expectEqual(preview, [], "zero selection has no preview items")
     }),
+    ("onboarding selection knows when settings should be the next step", {
+        let empty = OnboardingSelection(selectedTemplateKeys: [], customDraft: nil)
+        let templateOnly = OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil)
+        let customOnly = OnboardingSelection(
+            selectedTemplateKeys: [],
+            customDraft: CustomRoutineDraft(name: "Walk outside", glyphSymbolName: "figure.walk", dailyTime: DailyTime(hour: 15, minute: 10), dailyCount: 1)
+        )
+
+        try expect(!empty.hasAnyRoutine, "empty selection should route to settings instead of confirming an invisible start")
+        try expect(templateOnly.hasAnyRoutine, "selected templates should allow normal confirmation")
+        try expect(customOnly.hasAnyRoutine, "enabled custom draft should allow normal confirmation")
+    }),
     ("today preview excludes already-passed slots", {
         let calendar = makeCalendar()
         let now = makeDate(calendar, year: 2026, month: 5, day: 6, hour: 12, minute: 0)
@@ -797,6 +809,10 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(english.onboardingTemplateTitle(.eyeRest), "Eye rest", "English eye-rest card")
         try expectEqual(korean.onboardingTemplateIntent(.stretch), "어깨, 목, 고관절을 짧게 풀어요.", "Korean stretch intent")
         try expectEqual(english.todayPreviewHeading, "Today preview", "English preview heading")
+        try expectEqual(english.glyphLabel, "Icon", "English custom glyph label")
+        try expectEqual(korean.glyphLabel, "아이콘", "Korean custom glyph label")
+        try expectEqual(english.onboardingOpenSettingsButtonTitle, "Open settings", "English zero-selection CTA")
+        try expectEqual(korean.onboardingOpenSettingsButtonTitle, "설정으로 가기", "Korean zero-selection CTA")
         try expectEqual(english.onboardingNoSelectionPreview, "No puz selected yet", "English no-selection preview")
         try expectEqual(korean.onboardingNoSelectionPreview, "아직 선택한 puz가 없어요", "Korean no-selection preview")
     }),
@@ -865,8 +881,24 @@ let tests: [(String, () throws -> Void)] = [
     ("onboarding custom UI stays minimal", {
         let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
         try expect(text.contains("CustomRoutineDraft"), "onboarding should use custom draft")
+        try expect(text.contains("TimeStepper(hour: $customHour, minute: $customMinute)"), "custom onboarding time should use one compact HH:mm editor")
+        try expect(!text.contains("Stepper(value: $customMinute") && !text.contains("Text(strings.minuteUnit)"), "custom onboarding should not render a detached minute-only stepper")
         try expect(!text.contains("minimumGap"), "onboarding should not expose minimum gap")
         try expect(!text.contains("DistributionMode"), "onboarding should not expose distribution")
+    }),
+    ("onboarding custom glyph picker exposes many icon choices", {
+        let choices = OnboardingGlyphChoice.defaults
+        try expect(choices.count >= 24, "custom glyph picker should feel like a page icon chooser, not five actions")
+        try expectEqual(choices.first?.symbolName, "figure.walk", "walking remains the default glyph")
+        try expect(choices.contains { $0.symbolName == "leaf" }, "wellness glyphs should be included")
+        try expect(choices.contains { $0.symbolName == "timer" }, "utility glyphs should be included")
+        try expectEqual(Set(choices.map(\.symbolName)).count, choices.count, "glyph symbols should be unique")
+    }),
+    ("onboarding zero-selection primary action opens settings instead of pretending to start", {
+        let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
+        try expect(text.contains("onOpenSettings"), "onboarding should have a settings route")
+        try expect(text.contains("selection.hasAnyRoutine"), "primary CTA should branch on empty selection")
+        try expect(text.contains("onboardingOpenSettingsButtonTitle"), "empty selection should use settings CTA copy")
     }),
     ("onboarding confirm calls confirmOnboarding", {
         let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
@@ -877,6 +909,32 @@ let tests: [(String, () throws -> Void)] = [
         try expect(text.contains("onOpenOnboarding"), "menu should expose onboarding callback")
         try expect(text.contains("finishSetupLabel"), "menu should render setup CTA copy")
         try expect(text.contains("onboardingStatus"), "menu update should know onboarding status")
+    }),
+    ("settings uses icon picker instead of action picker in basics", {
+        let settingsText = try sourceText("Sources/PauseApp/SettingsWindowController.swift")
+        let promptText = try sourceText("Sources/PauseApp/PromptController.swift")
+        let overlayText = try sourceText("Sources/PauseApp/OverlayController.swift")
+        try expect(settingsText.contains("Picker(strings.glyphLabel"), "settings basics should label the chooser as Icon")
+        try expect(settingsText.contains("OnboardingGlyphChoice.defaults"), "settings icon picker should reuse the onboarding icon choices")
+        try expect(!settingsText.contains("Picker(strings.actionLabel"), "settings basics should not expose Action copy")
+        try expect(promptText.contains("symbolName: routine.glyphSymbolName"), "prompt should render the chosen routine icon")
+        try expect(overlayText.contains("symbolName: routine.glyphSymbolName"), "fullscreen overlay should render the chosen routine icon")
+    }),
+    ("fullscreen flow supports enter and arrow keyboard use", {
+        let promptText = try sourceText("Sources/PauseApp/PromptController.swift")
+        let overlayText = try sourceText("Sources/PauseApp/OverlayController.swift")
+        let stylesText = try sourceText("Sources/PauseApp/PuzStyles.swift")
+        try expect(stylesText.contains("case 36, 76"), "return and keypad enter should be handled")
+        try expect(stylesText.contains("case 124, 125") && stylesText.contains("case 123, 126"), "arrow keys should be handled")
+        try expect(promptText.contains("selectedKeyboardTarget") && promptText.contains("SnoozeDelayOption.promptOptions.map(PromptKeyboardTarget.snooze)"), "prompt should allow arrow selection across start and snooze")
+        try expect(overlayText.contains("handleKeyboardCommand") && overlayText.contains("session.resume()"), "completed countdown should support Enter to resume")
+        try expect(stylesText.contains("PuzEndSessionDialogTarget") && stylesText.contains("isKeyboardFocused"), "end-session dialog should expose keyboard-focused actions")
+    }),
+    ("fullscreen close dialog uses opaque surface", {
+        let stylesText = try sourceText("Sources/PauseApp/PuzStyles.swift")
+        try expect(stylesText.contains("dialogSurface"), "dialog should use a named solid surface color")
+        try expect(stylesText.contains(".fill(PuzFullscreenTheme.dialogSurface)"), "dialog card should be opaque so rear buttons do not bleed through")
+        try expect(!stylesText.contains("Color.white.opacity(0.94)"), "dialog card should not remain translucent")
     }),
     ("settings hides schedule power behind advanced disclosure", {
         let text = try sourceText("Sources/PauseApp/SettingsWindowController.swift")

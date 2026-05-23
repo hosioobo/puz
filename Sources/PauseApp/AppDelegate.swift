@@ -49,6 +49,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         onboardingWindowController.onConfirm = { [weak self] in
             self?.runtimeScheduler.reloadAndSchedule()
         }
+        onboardingWindowController.onOpenSettings = { [weak self] in
+            self?.settingsWindowController.show()
+        }
 
         if store.hasCompletedOnboarding {
             runtimeScheduler.reloadAndSchedule()

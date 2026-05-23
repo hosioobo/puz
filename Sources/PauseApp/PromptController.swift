@@ -44,6 +44,11 @@ final class PromptController {
     }
 }
 
+private enum PromptKeyboardTarget: Hashable {
+    case start
+    case snooze(SnoozeDelayOption)
+}
+
 struct PromptView: View {
     let routine: Routine
     let scheduledDate: Date
@@ -54,8 +59,17 @@ struct PromptView: View {
     let onQuit: () -> Void
 
     @State private var showsEndSessionDialog = false
+    @State private var selectedKeyboardTarget: PromptKeyboardTarget = .start
 
     private let strings = PuzLocalization.current
+
+    private var keyboardTargets: [PromptKeyboardTarget] {
+        var targets: [PromptKeyboardTarget] = [.start]
+        if snoozeState.canSnooze {
+            targets.append(contentsOf: SnoozeDelayOption.promptOptions.map(PromptKeyboardTarget.snooze))
+        }
+        return targets
+    }
 
     private var snoozeState: SnoozePromptState {
         SnoozePromptState(policy: routine.snoozePolicy, usedCount: usedSnoozeCount)
@@ -77,7 +91,7 @@ struct PromptView: View {
             VStack(spacing: 24) {
                 Spacer(minLength: 92)
 
-                PuzRoutineGlyph(actionType: routine.actionType)
+                PuzRoutineGlyph(actionType: routine.actionType, symbolName: routine.glyphSymbolName)
                     .padding(.bottom, 4)
 
                 VStack(spacing: 14) {
@@ -112,7 +126,8 @@ struct PromptView: View {
                                 minHeight: 94,
                                 fontSize: 39,
                                 cornerRadius: 28,
-                                lineWidth: 2
+                                lineWidth: 2,
+                                isKeyboardFocused: selectedKeyboardTarget == .start && !showsEndSessionDialog
                             )
                         )
 
@@ -154,7 +169,54 @@ struct PromptView: View {
                 )
             }
         }
+        .onAppear(perform: normalizeKeyboardSelection)
+        .onChange(of: snoozeState.canSnooze) { _ in normalizeKeyboardSelection() }
+        .puzKeyboardShortcuts { handleKeyboardCommand($0) }
         .animation(.easeOut(duration: 0.16), value: showsEndSessionDialog)
+    }
+
+    private func normalizeKeyboardSelection() {
+        guard !keyboardTargets.contains(selectedKeyboardTarget) else { return }
+        selectedKeyboardTarget = .start
+    }
+
+    private func moveKeyboardSelection(forward: Bool) {
+        guard !keyboardTargets.isEmpty else { return }
+        guard let currentIndex = keyboardTargets.firstIndex(of: selectedKeyboardTarget) else {
+            selectedKeyboardTarget = keyboardTargets[0]
+            return
+        }
+
+        let offset = forward ? 1 : -1
+        selectedKeyboardTarget = keyboardTargets[(currentIndex + offset + keyboardTargets.count) % keyboardTargets.count]
+    }
+
+    private func activateKeyboardSelection() {
+        switch selectedKeyboardTarget {
+        case .start:
+            onStart()
+        case .snooze(let option) where snoozeState.canSnooze:
+            onSnooze(option)
+        default:
+            normalizeKeyboardSelection()
+        }
+    }
+
+    private func handleKeyboardCommand(_ command: PuzKeyboardCommand) -> Bool {
+        guard !showsEndSessionDialog else { return false }
+        switch command {
+        case .confirm:
+            activateKeyboardSelection()
+            return true
+        case .moveNext:
+            moveKeyboardSelection(forward: true)
+            return true
+        case .movePrevious:
+            moveKeyboardSelection(forward: false)
+            return true
+        case .cancel:
+            return false
+        }
     }
 
     private var closeButton: some View {
@@ -202,7 +264,8 @@ struct PromptView: View {
                     minHeight: 82,
                     fontSize: 23,
                     cornerRadius: 16,
-                    lineWidth: 1.5
+                    lineWidth: 1.5,
+                    isKeyboardFocused: selectedKeyboardTarget == .snooze(option) && !showsEndSessionDialog
                 )
             )
         }
