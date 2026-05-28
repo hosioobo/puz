@@ -636,20 +636,31 @@ let tests: [(String, () throws -> Void)] = [
         try expectEqual(reloaded.routines, [], "dismiss should not activate routines")
         try expect(ScheduleEngine(calendar: makeCalendar()).nextRuntimeTrigger(for: reloaded.routines, after: Date()) == nil, "nothing should schedule")
     }),
-    ("confirming zero selected routines completes onboarding with empty routines", {
+    ("confirming zero selected routines keeps setup incomplete with empty routines", {
         let defaults = makeDefaults()
         let store = RoutineStore(defaults: defaults)
         store.confirmOnboarding(OnboardingSelection(selectedTemplateKeys: [], customDraft: nil))
 
         let reloaded = RoutineStore(defaults: defaults)
-        try expectEqual(reloaded.onboardingStatus, .completed, "zero selection still completes setup")
+        try expectEqual(reloaded.onboardingStatus, .dismissedBeforeConfirm, "zero selection should keep setup incomplete until a routine exists")
         try expectEqual(reloaded.routines, [], "zero selection keeps empty routines")
+    }),
+    ("dismiss-before-confirm cannot downgrade completed onboarding", {
+        let defaults = makeDefaults()
+        let store = RoutineStore(defaults: defaults)
+        store.confirmOnboarding(OnboardingSelection(selectedTemplateKeys: [.stretch], customDraft: nil))
+
+        store.markOnboardingDismissedBeforeConfirm()
+
+        let reloaded = RoutineStore(defaults: defaults)
+        try expectEqual(reloaded.onboardingStatus, .completed, "completed onboarding should not be downgraded by a later empty onboarding route")
+        try expectEqual(OnboardingActivation.runtimeRoutines(from: reloaded).count, 1, "completed routines should remain schedulable")
     }),
     ("runtime activation returns no routines before completed onboarding", {
         let defaults = makeDefaults()
         let store = RoutineStore(defaults: defaults)
-        store.saveRoutines([Routine.defaultRoutines()[0]])
         store.markOnboardingDismissedBeforeConfirm()
+        store.saveRoutines([Routine.defaultRoutines()[0]])
 
         try expectEqual(OnboardingActivation.runtimeRoutines(from: store), [], "not completed should not schedule")
 
@@ -899,10 +910,57 @@ let tests: [(String, () throws -> Void)] = [
         try expect(text.contains("onOpenSettings"), "onboarding should have a settings route")
         try expect(text.contains("selection.hasAnyRoutine"), "primary CTA should branch on empty selection")
         try expect(text.contains("onboardingOpenSettingsButtonTitle"), "empty selection should use settings CTA copy")
+        try expect(text.contains("markOnboardingDismissedBeforeConfirm"), "empty settings route should not complete onboarding before a routine is saved")
+    }),
+    ("onboarding layout keeps the footer out of the scrolling body", {
+        let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
+        try expect(text.contains("OnboardingWindowMetrics"), "onboarding should use named window metrics instead of scattered fixed sizes")
+        try expect(text.contains("footer"), "onboarding should keep footer as a named persistent area")
+        try expect(text.contains(".frame(maxWidth: .infinity, maxHeight: .infinity") || text.contains(".frame(maxHeight: .infinity"), "routine content should get a real scrollable viewport")
+        try expect(!text.contains(".frame(width: 760, height: 640)"), "onboarding should not keep the old clipped fixed frame")
     }),
     ("onboarding confirm calls confirmOnboarding", {
         let text = try sourceText("Sources/PauseApp/OnboardingWindowController.swift")
         try expect(text.contains("confirmOnboarding"), "confirm button should persist through RoutineStore.confirmOnboarding")
+    }),
+    ("qa launch flags can open deterministic windows without AX menu clicks", {
+        let launchText = try sourceText("Sources/PauseCore/PuzLaunchOptions.swift")
+        let mainText = try sourceText("Sources/PauseApp/main.swift")
+        let appDelegateText = try sourceText("Sources/PauseApp/AppDelegate.swift")
+        try expect(launchText.contains("--qa-open-onboarding"), "QA launch options should support opening onboarding")
+        try expect(launchText.contains("--qa-open-settings"), "QA launch options should support opening settings")
+        try expect(launchText.contains("--qa-reset"), "QA launch options should support a fresh defaults reset")
+        try expect(mainText.contains("PuzLaunchOptions.current"), "main should parse launch options before the app delegate starts")
+        try expect(appDelegateText.contains("launchOptions"), "AppDelegate should receive launch options")
+    }),
+    ("qa launch reset requires explicit confirmation", {
+        let unconfirmed = PuzLaunchOptions(arguments: ["puz", "--qa-reset"], environment: [:])
+        let confirmed = PuzLaunchOptions(arguments: ["puz", "--qa-reset"], environment: [PuzLaunchOptions.qaResetConfirmationEnvironmentKey: "1"])
+
+        try expect(unconfirmed.qaResetRequested, "reset flag should be visible for diagnostics")
+        try expect(!unconfirmed.qaResetDefaults, "reset should not run without explicit environment confirmation")
+        try expect(confirmed.qaResetDefaults, "reset should run with explicit environment confirmation")
+    }),
+    ("qa launch window request precedence is deterministic", {
+        let both = PuzLaunchOptions(arguments: ["puz", "--qa-open-settings", "--qa-open-onboarding"], environment: [:])
+        try expect(both.qaOpenOnboarding, "onboarding should win when both QA window flags are supplied")
+        try expect(!both.qaOpenSettings, "settings should not also open when onboarding wins precedence")
+    }),
+    ("qa reset reports when bundle reset cannot happen", {
+        let options = PuzLaunchOptions(arguments: ["puz", "--qa-reset"], environment: [PuzLaunchOptions.qaResetConfirmationEnvironmentKey: "1"])
+        let reset = options.resetStandardDefaultsIfRequested(bundleIdentifier: nil, defaults: makeDefaults())
+        try expect(!reset, "reset should report false when no bundle identifier is available")
+    }),
+    ("settings save can complete setup once a routine exists", {
+        let appDelegateText = try sourceText("Sources/PauseApp/AppDelegate.swift")
+        try expect(appDelegateText.contains("settingsWindowController.onSave = { [weak self] in\n            self?.completeOnboardingAfterSettingsSave()"), "settings save should complete incomplete onboarding after a non-empty routine save")
+        try expect(appDelegateText.contains("markOnboardingCompleted()"), "settings completion path should mark onboarding completed")
+    }),
+    ("settings empty state has one primary empty-state title and one CTA", {
+        let text = try sourceText("Sources/PauseApp/SettingsWindowController.swift")
+        let emptyTitleCount = text.components(separatedBy: "Text(strings.noRoutinesTitle)").count - 1
+        try expectEqual(emptyTitleCount, 1, "settings should not repeat the same empty-state title in sidebar and detail")
+        try expect(text.contains("emptyRoutineDetail"), "settings should render a single detail empty state with CTA")
     }),
     ("menu bar supports reopening incomplete setup", {
         let text = try sourceText("Sources/PauseApp/MenuBarController.swift")

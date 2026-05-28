@@ -34,12 +34,13 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
         if window == nil {
             let window = NSWindow(
-                contentRect: NSRect(x: 0, y: 0, width: 760, height: 640),
+                contentRect: NSRect(origin: .zero, size: OnboardingWindowMetrics.initialSize),
                 styleMask: [.titled, .closable, .miniaturizable],
                 backing: .buffered,
                 defer: false
             )
             window.title = strings.onboardingTitle
+            window.minSize = OnboardingWindowMetrics.minimumSize
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
@@ -64,6 +65,11 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             store.markOnboardingDismissedBeforeConfirm()
         }
     }
+}
+
+private enum OnboardingWindowMetrics {
+    static let initialSize = NSSize(width: 820, height: 760)
+    static let minimumSize = NSSize(width: 760, height: 640)
 }
 
 private enum OnboardingStep {
@@ -108,53 +114,73 @@ private struct OnboardingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack(alignment: .top, spacing: 14) {
-                PuzBrandLockup()
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(step == .welcome ? strings.onboardingWelcomeTitle : strings.onboardingTitle)
-                        .font(.largeTitle.bold())
-                    Text(step == .welcome ? strings.onboardingWelcomeBenefit : strings.onboardingSubtitle)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button(strings.cancelLabel) { onDismiss() }
-            }
-
-            ScrollView {
-                Group {
-                    if step == .welcome {
-                        welcomeStep
-                    } else {
-                        routineSelectionStep
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
-            HStack {
-                if step == .routineSelection {
-                    Button(strings.onboardingBackButtonTitle) {
-                        step = .welcome
-                    }
-                }
-                Spacer()
-                if step == .welcome {
-                    Button(strings.onboardingContinueButtonTitle) {
-                        step = .routineSelection
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                } else {
-                    Button(primaryButtonTitle) {
-                        performPrimaryAction()
-                    }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
-                }
-            }
+            header
+            scrollingContent
+            footer
         }
         .padding(24)
-        .frame(width: 760, height: 640)
+        .frame(
+            minWidth: OnboardingWindowMetrics.minimumSize.width,
+            idealWidth: OnboardingWindowMetrics.initialSize.width,
+            maxWidth: .infinity,
+            minHeight: OnboardingWindowMetrics.minimumSize.height,
+            idealHeight: OnboardingWindowMetrics.initialSize.height,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
+    }
+
+    private var header: some View {
+        HStack(alignment: .top, spacing: 14) {
+            PuzBrandLockup()
+            VStack(alignment: .leading, spacing: 6) {
+                Text(step == .welcome ? strings.onboardingWelcomeTitle : strings.onboardingTitle)
+                    .font(.largeTitle.bold())
+                Text(step == .welcome ? strings.onboardingWelcomeBenefit : strings.onboardingSubtitle)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button(strings.cancelLabel) { onDismiss() }
+        }
+    }
+
+    private var scrollingContent: some View {
+        ScrollView {
+            Group {
+                if step == .welcome {
+                    welcomeStep
+                } else {
+                    routineSelectionStep
+                }
+            }
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var footer: some View {
+        HStack {
+            if step == .routineSelection {
+                Button(strings.onboardingBackButtonTitle) {
+                    step = .welcome
+                }
+            }
+            Spacer()
+            if step == .welcome {
+                Button(strings.onboardingContinueButtonTitle) {
+                    step = .routineSelection
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+            } else {
+                Button(primaryButtonTitle) {
+                    performPrimaryAction()
+                }
+                .keyboardShortcut(.defaultAction)
+                .buttonStyle(.borderedProminent)
+            }
+        }
     }
 
     private var welcomeStep: some View {
@@ -172,10 +198,11 @@ private struct OnboardingView: View {
 
     private func performPrimaryAction() {
         let currentSelection = selection
-        store.confirmOnboarding(currentSelection)
         if currentSelection.hasAnyRoutine {
+            store.confirmOnboarding(currentSelection)
             onConfirm()
         } else {
+            store.markOnboardingDismissedBeforeConfirm()
             onOpenSettings()
         }
     }

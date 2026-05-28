@@ -97,8 +97,6 @@ struct RoutinesSettingsView: View {
 
             if routines.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(strings.noRoutinesTitle)
-                        .font(.headline)
                     Text(strings.noRoutinesMessage)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
@@ -147,18 +145,28 @@ struct RoutinesSettingsView: View {
                         .padding(24)
                 }
             } else {
-                VStack(spacing: 10) {
-                    Text(strings.noRoutinesTitle)
-                        .font(.title3.bold())
-                    Text(strings.selectRoutineMessage)
-                        .foregroundStyle(.secondary)
-                    Button(strings.newRoutineLabel) {
-                        addRoutine()
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                emptyRoutineDetail
             }
         }
+    }
+
+    private var emptyRoutineDetail: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundStyle(PuzFullscreenTheme.accent)
+            Text(strings.noRoutinesTitle)
+                .font(.title3.bold())
+            Text(strings.noRoutinesMessage)
+                .foregroundStyle(.secondary)
+            Button(strings.newRoutineLabel) {
+                addRoutine()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .multilineTextAlignment(.center)
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var footer: some View {

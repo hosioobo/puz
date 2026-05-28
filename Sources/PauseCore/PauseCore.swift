@@ -821,6 +821,7 @@ public final class RoutineStore {
     }
 
     public func markOnboardingDismissedBeforeConfirm() {
+        guard onboardingStatus != .completed else { return }
         saveOnboardingStatus(.dismissedBeforeConfirm)
     }
 
@@ -829,8 +830,9 @@ public final class RoutineStore {
     }
 
     public func confirmOnboarding(_ selection: OnboardingSelection) {
-        saveRoutines(OnboardingRoutineFactory.routines(from: selection))
-        saveOnboardingStatus(.completed)
+        let routines = OnboardingRoutineFactory.routines(from: selection)
+        saveRoutines(routines)
+        saveOnboardingStatus(routines.isEmpty ? .dismissedBeforeConfirm : .completed)
     }
 
     public func saveRoutines(_ routines: [Routine]) {

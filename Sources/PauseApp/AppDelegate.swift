@@ -2,6 +2,7 @@ import AppKit
 import PauseCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private let launchOptions: PuzLaunchOptions
     private let store = RoutineStore()
     private var menuBarController: MenuBarController!
     private var promptController: PromptController!
@@ -9,6 +10,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var settingsWindowController: SettingsWindowController!
     private var onboardingWindowController: OnboardingWindowController!
     private var runtimeScheduler: RuntimeScheduler!
+
+    init(launchOptions: PuzLaunchOptions = .current) {
+        self.launchOptions = launchOptions
+        super.init()
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -44,7 +50,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.terminate(nil)
         }
         settingsWindowController.onSave = { [weak self] in
-            self?.runtimeScheduler.reloadAndSchedule()
+            self?.completeOnboardingAfterSettingsSave()
         }
         onboardingWindowController.onConfirm = { [weak self] in
             self?.runtimeScheduler.reloadAndSchedule()
@@ -53,16 +59,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.settingsWindowController.show()
         }
 
+        if launchOptions.qaOpenOnboarding {
+            if store.hasCompletedOnboarding {
+                runtimeScheduler.reloadAndSchedule()
+            } else {
+                updateMenuForIncompleteSetup()
+            }
+            onboardingWindowController.show()
+            return
+        }
+
+        if launchOptions.qaOpenSettings {
+            if store.hasCompletedOnboarding {
+                runtimeScheduler.reloadAndSchedule()
+            } else {
+                updateMenuForIncompleteSetup()
+            }
+            settingsWindowController.show()
+            return
+        }
+
         if store.hasCompletedOnboarding {
             runtimeScheduler.reloadAndSchedule()
         } else {
-            menuBarController.update(
-                next: nil,
-                todayCompleted: 0,
-                todayTotal: 0,
-                hasRoutines: false,
-                onboardingStatus: store.onboardingStatus
-            )
+            updateMenuForIncompleteSetup()
             if OnboardingLaunchPolicy.shouldAutoOpenSetup(status: store.onboardingStatus) {
                 onboardingWindowController.show()
             }
@@ -71,5 +91,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         runtimeScheduler?.stop()
+    }
+
+    private func updateMenuForIncompleteSetup() {
+        menuBarController.update(
+            next: nil,
+            todayCompleted: 0,
+            todayTotal: 0,
+            hasRoutines: false,
+            onboardingStatus: store.onboardingStatus
+        )
+    }
+
+    private func completeOnboardingAfterSettingsSave() {
+        if !store.hasCompletedOnboarding, !store.routines.isEmpty {
+            store.markOnboardingCompleted()
+        }
+
+        if store.hasCompletedOnboarding {
+            runtimeScheduler.reloadAndSchedule()
+        } else {
+            updateMenuForIncompleteSetup()
+        }
     }
 }
